@@ -16,6 +16,8 @@ CORE_SKILLS=(
   "github-repo-setup"
   "technical-report"
   "testing-strategy"
+  "ui-design-system"
+  "web-performance-optimizer"
 )
 
 # Colors
