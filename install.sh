@@ -3,7 +3,7 @@
 # Installer for BGLuis Agent Skills Hub
 # https://github.com/BGLuis/skills
 # ==============================================================================
-set -e
+set -euo pipefail
 
 REPO_URL="https://github.com/BGLuis/skills.git"
 DEFAULT_HUB_DIR="${HOME}/.agents"
@@ -191,6 +191,12 @@ else
     cursor)  TARGETS+=("Cursor:${HOME}/.cursor/skills") ;;
     *)       error "Agente desconhecido: ${TARGET_AGENT}"; exit 1 ;;
   esac
+fi
+
+if [[ "${#TARGETS[@]}" -eq 0 ]]; then
+  error "Nenhum diretório de agente conhecido foi encontrado (~/.gemini, ~/.claude, ~/.copilot)."
+  error "Nada foi instalado. Use --agent <gemini|claude|copilot|cursor|all> para escolher um alvo explicitamente."
+  exit 1
 fi
 
 for target in "${TARGETS[@]}"; do

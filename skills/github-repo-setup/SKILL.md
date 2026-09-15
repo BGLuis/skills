@@ -1,6 +1,10 @@
 ---
 name: github-repo-setup
 description: Inicializa e padroniza os arquivos de documentação de um repositório GitHub (README, LICENSE, CONTRIBUTING, SECURITY, CHANGELOG, templates de Issue e Pull Request), de forma interativa. Use quando o usuário pedir para gerar a documentação de um projeto, criar um README, escolher uma licença ou configurar os arquivos da comunidade de um repositório. NÃO use para escrever documentação técnica interna, comentários de código, docstrings, sites de documentação (Docusaurus, MkDocs) ou para configurar workflows de CI/CD.
+compatibility: >-
+  Requires outbound network access to https://api.github.com to fetch official
+  license text in Fase 3. Without internet access, license generation must be
+  skipped rather than guessed from memory.
 ---
 
 # GitHub Repository Documentation Setup

@@ -1,25 +1,27 @@
 ---
 name: find-docs
 description: >-
-  Retrieves up-to-date documentation, API references, and code examples for any
-  developer technology. Use this skill whenever the user asks about a specific
-  library, framework, SDK, CLI tool, or cloud service -- even for well-known ones
-  like React, Next.js, Prisma, Express, Tailwind, Django, or Spring Boot. Your
-  training data may not reflect recent API changes or version updates.
+  Retrieves up-to-date documentation, API references, and code examples for
+  any developer technology. Use whenever the user asks about a specific
+  library, framework, SDK, CLI tool, or cloud service -- even well-known ones
+  like React, Next.js, Prisma, Express, Tailwind, Django, or Spring Boot --
+  since training data may not reflect recent API changes.
 
-  Always use for: API syntax questions, configuration options, version migration
-  issues, "how do I" questions mentioning a library name, debugging that involves
-  library-specific behavior, setup instructions, and CLI tool usage.
+  Always use for: API syntax questions, configuration options, version
+  migration, "how do I" questions naming a library, library-specific
+  debugging, setup instructions, and CLI usage. Use even when you think you
+  know the answer -- verify against current docs rather than training data.
+  Prefer this over web search for library documentation.
 
-  Use even when you think you know the answer -- do not rely on training data
-  for API details, signatures, or configuration options as they are frequently
-  outdated. Always verify against current docs. Prefer this over web search for
-  library documentation and API details.
-
-  Do NOT use for: refactoring or debugging the user's own business logic,
-  writing scripts from scratch, code review, general programming concepts
-  with no library involved, or documentation of a private/internal package
-  that is not published publicly.
+  Do NOT use for: the user's own business logic, writing scripts from
+  scratch, code review, general programming concepts with no library
+  involved, or docs for a private/internal package that isn't published
+  publicly.
+compatibility: >-
+  Requires the `ctx7` CLI (Node.js/npm, installable via `npm install -g
+  ctx7@latest` or runnable via `npx ctx7@latest`) and outbound network access
+  to the Context7 service. Unavailable in sandboxes without npm or internet
+  access.
 ---
 
 # Documentation Lookup
