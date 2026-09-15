@@ -15,36 +15,36 @@
 ![GitHub Copilot](https://img.shields.io/badge/Agent-GitHub_Copilot-181717?style=flat-square)
 ![Cursor](https://img.shields.io/badge/Agent-Cursor-000000?style=flat-square)
 
-  <h3>Agent Skills Hub</h3>
-  Coleção de habilidades modulares e portáteis para agentes de inteligência artificial.
+  <h3>BGLuis Agent Skills</h3>
+  Coleção de habilidades autorais, modulares e portáteis para agentes de inteligência artificial.
 </div>
 
 ---
 
 # 📖 Sobre
 
-Este repositório é um **Hub Central de Agent Skills** projetado sob a especificação aberta [agentskills.io](https://agentskills.io). Ele oferece um conjunto robusto de procedimentos, diretrizes e heurísticas projetadas para elevar a precisão de agentes de codificação como **Claude Code**, **Gemini CLI / Antigravity**, **GitHub Copilot**, **Cursor** e outros.
+Este repositório reúne as **Agent Skills autorais criadas e mantidas por [@BGLuis](https://github.com/BGLuis)**, projetadas sob a especificação aberta [agentskills.io](https://agentskills.io). 
 
-As habilidades seguem três princípios estruturais inegociáveis:
-1. **Portabilidade Universal:** Sem acoplamento a nomes de ferramentas de agentes específicos (ex: `read_file` vs `view_file`).
-2. **Divulgação Progressiva:** O `SKILL.md` principal carrega apenas a cognição imediata; guias e heurísticas extensas são isolados na pasta `references/`.
-3. **Limites Negativos Estritos:** Cada gatilho semântico (`description`) define explicitamente quando a skill **NÃO** deve ser acionada, eliminando falsos positivos e superativações.
+Cada habilidade foi desenvolvida para solucionar gargalos frequentes de precisão, contextualização e autonomia em agentes de codificação como **Claude Code**, **Gemini CLI / Antigravity**, **GitHub Copilot**, **Cursor** e outros.
+
+### Pilares de Design:
+1. **Portabilidade Universal:** Descreve ações sem acoplar a nomes específicos de ferramentas de uma IA proprietária.
+2. **Divulgação Progressiva:** Mantém o `SKILL.md` enxuto; heurísticas e referências longas são carregadas sob demanda a partir de `references/`.
+3. **Limites Negativos Estritos:** Cada gatilho semântico define expressamente o que a skill **NÃO** deve fazer, prevenindo superativações e falsos positivos.
 
 ---
 
 # 📋 Motivo
 
-O projeto nasceu da necessidade de unificar e versionar as habilidades dos agentes em uma única fonte da verdade (`Single Source of Truth`). Em vez de manter cópias divergentes em diretórios de cada agente (`~/.claude/skills`, `~/.gemini/skills`, `.copilot/skills`), este hub centraliza o ciclo de vida das skills e permite distribuição transparente via links simbólicos ou comandos simples de ecossistema.
+O projeto nasceu da necessidade de centralizar, versionar e compartilhar procedimentos de engenharia de alta qualidade para assistentes de IA em uma única fonte da verdade (`Single Source of Truth`).
 
 ---
 
 # 💻 Como Instalar e Usar
 
-Você pode instalar as skills no seu computador ou projeto através de dois métodos simples:
-
 ### Método 1: Via CLI Oficial da Comunidade (`npx skills`)
 
-Compatível automaticamente com Claude, Gemini, Copilot, Cursor, Zed, Amp, Cline e outros:
+Compatível automaticamente com Claude Code, Gemini CLI, Copilot, Cursor, Zed, Amp, Cline, etc.:
 
 ```sh
 # Instalar interativamente (escolha quais agentes e quais skills ativar):
@@ -58,28 +58,21 @@ npx skills add BGLuis/skills --skill docker-optimizer
 
 ### Método 2: Via Script Instalador Universal (`install.sh`)
 
-Ideal para ambientes Linux e macOS com automação de links simbólicos:
+Ideal para ambientes Linux e macOS com criação e atualização automática de links simbólicos:
 
 ```sh
-# Instalação rápida via curl (detecta seus agentes automaticamente):
+# Instalação rápida via curl:
 curl -fsSL https://raw.githubusercontent.com/BGLuis/skills/main/install.sh | bash
 
-# Ou instale apenas o pacote autoral core (@BGLuis):
-curl -fsSL https://raw.githubusercontent.com/BGLuis/skills/main/install.sh | bash -s -- --core
-```
-
-#### Instalação Manual via Git Clone:
-```sh
-git clone https://github.com/BGLuis/skills.git ~/.agents
-cd ~/.agents
+# Ou instalação local após clonar o repositório:
+git clone https://github.com/BGLuis/skills.git
+cd skills
 ./install.sh
 ```
 
 ---
 
 # 📦 Catálogo de Skills
-
-### 🚀 Skills Autorais Core (@BGLuis)
 
 | Skill | Descrição & Gatilho Principal | Foco & Recursos |
 | :--- | :--- | :--- |
@@ -90,16 +83,6 @@ cd ~/.agents
 | [`github-repo-setup`](./skills/github-repo-setup/SKILL.md) | Padronização interativa da documentação de repositórios (README, LICENSE, etc.). | Baseado no padrão de excelência `bgluis-template` e badges `shieldcn.dev`. |
 | [`technical-report`](./skills/technical-report/SKILL.md) | Elabora relatórios técnicos estruturados em `docs/reports/`. | Análise, auditoria e pós-implementação 100% ancorados em evidências `arquivo:linha`. |
 | [`testing-strategy`](./skills/testing-strategy/SKILL.md) | Cria e audita suítes de teste para verificação de intenção real de regras de negócio. | Doutrina agnóstica de testes com referências para JS/TS, Python, Go e Rust. |
-
-### 🌐 Ferramentas Curadas da Comunidade
-
-O hub também inclui ferramentas essenciais curadas do ecossistema:
-- [`impeccable`](./skills/impeccable/SKILL.md): Design system e polimento de interfaces frontend.
-- [`systematic-debugging`](./skills/systematic-debugging/SKILL.md): Metodologia estrita para descoberta de causa-raiz antes de propor correções.
-- [`grill-me`](./skills/grill-me/SKILL.md): Entrevista implacável para refinar ideias e arquiteturas.
-- [`triage`](./skills/triage/SKILL.md): Máquina de estados para triagem de issues e PRs.
-- [`microsoft-foundry`](./skills/microsoft-foundry/SKILL.md): Suite avançada para desenvolvimento de agentes Microsoft Foundry.
-- [`find-skills`](./skills/find-skills/SKILL.md): Descoberta de novas skills no ecossistema aberto.
 
 ---
 
