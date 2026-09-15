@@ -1,0 +1,68 @@
+name: Validate Skills
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  validate:
+    name: Lint and Validate Agent Skills
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate SKILL.md Frontmatter and Structure
+        run: |
+          set -e
+          echo "Verifying agent skills..."
+          ERRORS=0
+
+          for skill_dir in skills/*; do
+            if [ -d "$skill_dir" ]; then
+              skill_name=$(basename "$skill_dir")
+              skill_file="$skill_dir/SKILL.md"
+
+              echo "Checking skill: $skill_name"
+
+              if [ ! -f "$skill_file" ]; then
+                echo "::error::Skill '$skill_name' is missing SKILL.md"
+                ERRORS=$((ERRORS + 1))
+                continue
+              fi
+
+              # Check for YAML frontmatter opening
+              first_line=$(head -n 1 "$skill_file")
+              if [ "$first_line" != "---" ]; then
+                echo "::error::Skill '$skill_name' SKILL.md does not start with '---'"
+                ERRORS=$((ERRORS + 1))
+              fi
+
+              # Check for 'name:' and 'description:' in frontmatter
+              if ! grep -q "^name:" "$skill_file"; then
+                echo "::error::Skill '$skill_name' SKILL.md missing 'name:' field"
+                ERRORS=$((ERRORS + 1))
+              fi
+
+              if ! grep -q "^description:" "$skill_file"; then
+                echo "::error::Skill '$skill_name' SKILL.md missing 'description:' field"
+                ERRORS=$((ERRORS + 1))
+              fi
+
+              # Check for broken symlinks
+              broken_symlinks=$(find "$skill_dir" -xtype l)
+              if [ -n "$broken_symlinks" ]; then
+                echo "::error::Skill '$skill_name' contains broken symlinks: $broken_symlinks"
+                ERRORS=$((ERRORS + 1))
+              fi
+            fi
+          done
+
+          if [ $ERRORS -gt 0 ]; then
+            echo "Validation failed with $ERRORS errors."
+            exit 1
+          fi
+
+          echo "All skills validated successfully!"
