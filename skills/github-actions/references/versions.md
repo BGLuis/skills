@@ -4,7 +4,7 @@ Resolved on **2026-09-23** with `gh api` (release tag → commit SHA). Versions 
 
 ## Runtime baseline
 
-- Node 24 became the default for JavaScript actions on 2026-06-16, and **Node 20 was removed from the runners on 2026-09-23**. Any action still on `runs.using: node20` stops working. Checked with `gh api` on 2026-09-23: `checkout@v4`, `cache@v4`, `setup-node@v4`, `setup-python@v5`, `setup-go@v5` and `upload-artifact@v4` are all `node20`, while `checkout@v5` and `setup-node@v5` are already `node24`. Read `runs.using` in the action.yml at the pinned ref when in doubt.
+- Node 24 became the default for JavaScript actions on 2026-06-16, and Node 20 is being removed from the runners (announced for 2026-09-23). An action that declares `runs.using: node20` **does not fail**: the runner forces it onto Node 24 and logs `##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-python@v5` (observed on 2026-09-23). It usually works, but nobody tested that combination, and `ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true` is only a temporary escape hatch. Upgrade to the current majors. Checked with `gh api` on 2026-09-23: `checkout@v4`, `cache@v4`, `setup-node@v4`, `setup-python@v5`, `setup-go@v5` and `upload-artifact@v4` are all `node20`, while `checkout@v5` and `setup-node@v5` are already `node24`. Read `runs.using` in the action.yml at the pinned ref when in doubt.
 - Every current JavaScript major needs **runner ≥ 2.327.1**. This matters on self-hosted runners and GHES. `checkout@v6+` needs ≥ 2.329.0 for authenticated git inside Docker container actions, and `uses: $/path` needs ≥ 2.336.0.
 - Node 24 does not run on macOS ≤ 13.4 or ARM32 self-hosted runners.
 

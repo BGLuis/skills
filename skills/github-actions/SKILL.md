@@ -29,7 +29,7 @@ Act as a Platform Engineer. Every workflow you write or review must satisfy, in 
 - `timeout-minutes` on every job (the default is 360).
 - `concurrency` on every PR workflow: `group: ${{ github.workflow }}-${{ github.ref }}`, `cancel-in-progress: ${{ github.event_name == 'pull_request' }}`. Deploys use a fixed group that never cancels.
 - Pinned runner images (`ubuntu-24.04`), not `-latest` (`ubuntu-latest` moves to 26.04 in Oct–Nov 2026).
-- Current action majors only. Node 20 was removed from runners on 2026-09-23, so `@v4`-era actions fail.
+- Current action majors only. Node 24 is the only runtime on the runners (Node 20 removal: 2026-09-23). `@v4`-era actions still run, but the runner **forces them onto Node 24** with a deprecation warning, a combination their authors never tested.
 
 ## 2. Minimum resources: the levers that matter (measured)
 

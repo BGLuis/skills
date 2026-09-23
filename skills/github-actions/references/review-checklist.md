@@ -16,7 +16,7 @@ Severity: 🔴 security/correctness · 🟠 cost/speed · 🟡 maintainability.
 | 6 | Long-lived cloud keys or registry tokens where OIDC / trusted publishing works | 🔴 | zizmor `use-trusted-publishing` |
 | 7 | `secrets: inherit`, `toJSON(secrets)`, secrets echoed or written to files that get uploaded | 🔴 | zizmor `secrets-inherit`, `overprovisioned-secrets` |
 | 8 | Cache restored in a release/publish/privileged job (no `cache-mode: none`), or `cache-mode: write` on a low-trust trigger | 🔴 | zizmor `cache-poisoning` |
-| 9 | Actions on the removed Node 20 runtime (`checkout@v4`, `cache@v4`, `setup-node@v4`, `setup-python@v5`, `setup-go@v5`, `upload-artifact@v4`…) | 🔴 | run fails; check `references/versions.md` |
+| 9 | Actions targeting the deprecated Node 20 runtime (`checkout@v4`, `cache@v4`, `setup-node@v4`, `setup-python@v5`, `setup-go@v5`, `upload-artifact@v4`…), forced onto Node 24 | 🟠 | run log: `being forced to run on Node.js 24`; `references/versions.md` |
 | 10 | Required check comes from a workflow with `on.paths`, so it stays pending when skipped | 🔴 | manual |
 | 11 | `if:` pitfalls: `if: \|` block that is always true, `a && b \|\| c` with falsy `b`, `contains()` on a string | 🔴 | zizmor `unsound-condition`, `unsound-ternary`, `unsound-contains` |
 | 12 | No `concurrency` on PR workflows, or `cancel-in-progress: true` that also cancels main/deploys | 🟠 | zizmor `concurrency-limits` |

@@ -21,7 +21,7 @@ Never produce these. Each one comes with what it costs and the fix. The "Detecte
 | 15 | Project in a subdirectory, `setup-go` / `setup-node` without `cache-dependency-path` | cache silently never hits (warning only) | `cache-dependency-path: <dir>/go.sum` | step log |
 | 16 | `pip install uv` + `setup-python` in every job | redundant downloads, no cache | `astral-sh/setup-uv` (installs Python, caches) | zizmor `superfluous-actions` (partial) |
 | 17 | `actions/cache` saving on every PR | PR-scoped caches nobody can reuse, evicting main's | save only on the default branch | `gh cache list` |
-| 18 | `actions/checkout@v4`, `actions/cache@v4`, `setup-node@v4` | Node 20 runtime removed 2026-09-23, so the run fails | current majors (`references/versions.md`) | run log |
+| 18 | `actions/checkout@v4`, `actions/cache@v4`, `setup-node@v4` | Node 20 runtime deprecated. The runner forces them onto Node 24 with a warning, an untested combination | current majors (`references/versions.md`) | run log: `being forced to run on Node.js 24` |
 | 19 | QEMU (`setup-qemu-action`) for multi-arch when the language cross-compiles | every `RUN` emulated, several times slower | `FROM --platform=$BUILDPLATFORM` + `GOOS/GOARCH`, or native `ubuntu-24.04-arm` | measure (`docker-build-push.md`) |
 | 20 | `runs-on: ubuntu-latest` for toolchain-sensitive builds | image changes under you (→ 26.04, Oct–Nov 2026) | `ubuntu-24.04` | manual |
 | 21 | `if: github.actor == 'dependabot[bot]'` to grant privileges | spoofable in some flows | check `github.event.pull_request.user.login` and the event | zizmor `bot-conditions` |
