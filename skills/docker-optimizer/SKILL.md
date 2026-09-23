@@ -1,71 +1,92 @@
 ---
 name: docker-optimizer
-description: Generates and reviews Dockerfiles and docker-compose.yml configurations for build performance, image size, multi-stage builds, and container security. Use whenever the user asks to write, review, harden, or optimize a Dockerfile, docker-compose file, or container image, or asks why a Docker build is slow or an image is too large. Do NOT use for Kubernetes manifests/orchestration, CI/CD pipeline YAML, or general application code unrelated to containerization.
+description: Generates, reviews, and tunes Dockerfiles, .dockerignore, and docker-compose.yml for small images, fast cached builds, hardened containers, and maximum performance under tight CPU/memory limits. Use whenever the user asks to write, review, harden, or optimize a Dockerfile, compose file, or container image, asks why a Docker build is slow or an image is too large, or asks how to size container resources (memory/CPU limits, workers, heap, GOMAXPROCS). Do NOT use for Kubernetes manifests/Helm, CI/CD pipeline YAML (that is github-actions), or application code unrelated to containerization.
 ---
 
 # Docker Optimizer
 
-Act as a Senior Infrastructure Engineer when generating or reviewing Dockerfiles and docker-compose configurations. Do not produce standard, unoptimized configurations — always apply the rules below.
+Act as a Senior Infrastructure Engineer. Every image you write or review must satisfy, in this order: **correct** (it builds and runs), **secure** (least privilege), **small and fast** (build, pull, startup), **frugal at runtime** (the smallest CPU/memory limit that holds the load). Never produce a generic Dockerfile: apply the rules below and justify each decision.
 
-## 0. Workflow: analysis and comparison report
+## 0. Workflow
 
-- **Existing analysis**: Before modifying anything, read the existing `Dockerfile` or `docker-compose.yml` (if present). Understand the current base image, dependencies, layer structure, and likely bottlenecks.
-- **Before/after report**: Whenever you optimize an existing configuration, end your response with a comparison summary:
-  - Estimated or actual reduction in final image size (e.g., "reduced from 1.2GB to 150MB").
-  - Expected improvements in build time (from cache mounts) and startup time.
-  - A bulleted list of the main architectural changes and why they matter.
+1. **Read before writing.** Existing `Dockerfile`, `.dockerignore`, `compose.yaml`, the lockfile and package manager, the language version (`.nvmrc`, `go.mod`, `pyproject.toml`, `rust-toolchain.toml`, `pom.xml`), the real start command, and whether the app writes to disk, spawns child processes, or needs native libraries.
+2. **Choose the base and the stages** (`references/dockerfile-rules.md` §6). Use the example for the language in `examples/` as the template.
+3. **Validate** when a docker CLI is available:
+   - `docker build --check .` (no warnings)
+   - build, then `docker image ls` / `docker image inspect -f '{{.Size}}'`
+   - `docker run` with the production limits (`--cpus`, `-m`)
+   - `docker stop` exits 0 fast
+   - `docker inspect -f '{{.Config.User}}'` is not root
 
-## 1. General Dockerfile rules
+   Commands are in `references/review-checklist.md`.
+4. **Before/after report** whenever you optimize something that exists. Report compressed size, on-disk size, rebuild time after a code-only change, the user, and `docker stop` time, with **real numbers** when you could measure and marked as estimates when you could not. Then list the changes and why each one matters.
 
-- **Layer caching**: Order instructions from least frequently changed (OS dependencies) to most frequently changed (application code).
-- **`.dockerignore`**: Always include a strict `.dockerignore` (excluding `node_modules`, `.git`, local build artifacts, etc.).
-- **`COPY` vs `ADD`**: Always use `COPY`. Only use `ADD` to natively extract a local `.tar` file.
-- **Rootless**: Never run the final application as root. Use a predefined non-root user (like `node`) or create one.
-- **Pin versions**: Never use `latest`. Pin base images to specific versions or SHA-256 digests (e.g., `FROM node@sha256:...`).
-- **Signal handling**: Ensure PID 1 forwards signals. Use the exec form of `CMD`/`ENTRYPOINT`; add `--init` or `tini` only when the process genuinely spawns children.
-- **Healthchecks**: Define a `HEALTHCHECK` (or a compose-level `healthcheck`) for long-running services so orchestrators can detect a hung process.
-- **Linting compliance**: Adhere to `hadolint` rules (group `RUN` commands with `&&`, pin `apt`/`apk` package versions, clear package caches).
+## 1. Non-negotiable rules (Dockerfile)
 
-## 2. Base image selection
+- `# syntax=docker/dockerfile:1` on the first line.
+- **Multi-stage** for anything compiled or transpiled. Compilers, devDependencies, headers and source code never reach the final stage.
+- **Cache order**: manifests + dependency install before `COPY` of the source. Mount the manifests with `--mount=type=bind` instead of copying them.
+- **`--mount=type=cache`** on the package manager. **`--mount=type=secret`** for credentials. Never put secrets in `ARG`/`ENV`.
+- **Strict `.dockerignore`**, always (`.git`, `.env*`, `node_modules`, `target`, `.venv`, `Dockerfile*`...).
+- **Non-root with a static UID/GID** (`USER 10001:10001` or the image's `nonroot` 65532). Files copied into the runtime stay owned by root (read-only for the process). Use `--chown` only where the app writes.
+- **Pin the base**: at least `major.minor` for the tag, plus a `@sha256:` digest in production with automated updates. Never `latest`. Don't pin apt/apk package versions.
+- **Exec form** in `CMD`/`ENTRYPOINT`, **never a package manager as PID 1** (`npm start`, `uv run`, `poetry run`). The process must handle `SIGTERM`, or the container runs with `init: true` / `--init`.
+- **`COPY`, not `ADD`**. `apt-get install --no-install-recommends`.
+- **HEALTHCHECK** only with something that exists in the image. Distroless has no `curl`: use a `healthcheck` subcommand in the binary itself, the runtime (`node -e fetch(...)`, `python -c urllib...`), or leave it to the orchestrator.
 
-- **Debian slim**: Default for interpreted languages (Python, Node.js) to avoid `musl` libc compatibility issues.
-- **Distroless**: Default for production runtime (Java, Node.js, Python) for maximum security (no shell, minimal attack surface).
-- **Scratch**: Use only for static, self-contained binaries (Go, Rust compiled with `x86_64-unknown-linux-musl`).
-- **Alpine**: Avoid for Node/Python if C extensions are required. Fine for pure tools or networking utilities.
+## 2. Base image (summary — full table in `references/dockerfile-rules.md` §6)
 
-## 3. Advanced build architecture (BuildKit)
+| Case | Runtime |
+|---|---|
+| Go, Rust with musl | `gcr.io/distroless/static-debian13:nonroot` (`scratch` only if you copy CA and passwd yourself) |
+| Rust/C++ glibc | `gcr.io/distroless/cc-debian13:nonroot` |
+| Node | `gcr.io/distroless/nodejs24-debian13:nonroot`, or `node:24-trixie-slim` if you need a shell |
+| Python | `python:3.x-slim-trixie` (same interpreter in build and runtime; distroless/python ships a different Python version) |
+| Java | jlink custom JRE on `debian:trixie-slim`, or `eclipse-temurin:25-jre` |
+| Hardened alternative | Docker Hardened Images (`dhi.io`, free, near-zero CVEs) |
+| Build stage | full image of the language, never shipped |
 
-- **Multi-stage builds**: Always use multi-stage builds (`builder` and `runner` stages) to keep the final image minimal.
-- **Syntax**: Include `# syntax=docker/dockerfile:1.4` (or newer) at the top of the file.
-- **Cache mounts**: Use `--mount=type=cache` for package managers (apt, npm, pip, cargo) to speed up rebuilds.
-- **Secret mounts**: Use `--mount=type=secret` for credentials. Never use `ARG` or `ENV` for secrets.
+Avoid `alpine` for Python and for native Node dependencies (musl: wheels and prebuilt binaries are often missing → slow builds, subtle bugs).
 
-## 4. Language-specific heuristics
+## 3. Runtime performance under limits
 
-If the target application uses Node.js, Python, Rust, Go, or Java, read `references/language-heuristics.md` before proceeding with the optimization.
+Most runtimes size threads, workers and heap from the **host**, not from the container. Before you set limits, read `references/runtime-performance.md`. In short (measured on Engine 29.7):
 
-## 5. Reference examples (few-shot)
+- **Node**: the heap follows the limit without headroom (256 MB → heap 259 MB → OOM kill). Always set `--max-old-space-size` ≈ 75% of the limit.
+- **Python**: `os.cpu_count()` returns the host's cores. Set `--workers` explicitly.
+- **Go ≥ 1.25**: `GOMAXPROCS` follows the CPU limit (floor of 2). Set `GOMEMLIMIT` ≈ 90% of the memory limit.
+- **Java**: the default heap is 25% of the limit. Use `-XX:MaxRAMPercentage=75`.
+- **Rust**: respects the CPU limit by itself.
 
-If in doubt about the ideal structure of a file, read the relevant file under `examples/` — gold-standard configurations and anti-patterns to avoid:
+## 4. Compose
 
-- `examples/node-multistage.md` — production Node.js Dockerfile
-- `examples/go-scratch.md` — production Go Dockerfile
-- `examples/compose-dev.md` — development docker-compose.yml
-- `examples/bad-dockerfile.md` — anti-patterns to never reproduce
+Details and validated fields in `references/compose.md`. Production:
 
-## 6. Development vs. production environments
+- `deploy.resources.limits` (cpus, memory, pids) + `reservations.memory`
+- `read_only: true` + `tmpfs`, `cap_drop: [ALL]`, `security_opt: [no-new-privileges:true]`, `init: true`
+- log rotation (`max-size`/`max-file`)
+- `healthcheck` + `depends_on: condition: service_healthy`
+- `restart: unless-stopped`
+- ports on `127.0.0.1` when there's a proxy in front
 
-- **Local development**:
-  - Do NOT use Distroless or Scratch. Use images with a shell (e.g., `-slim` or standard variants) so the developer can `docker exec` and debug.
-  - Use `docker compose watch` for live code syncing (hot-reloading) instead of rebuilding the image on every change.
-  - Bind mounts are acceptable and expected; on Mac/Windows, advise the user on VirtioFS for better I/O performance.
-- **Production**:
-  - Apply the strict rules above: Distroless, no bind mounts of source code, multi-stage builds, locked/pinned configurations.
+Development: a `dev` stage with a shell, `develop.watch` (sync/rebuild) instead of rebuilding by hand.
 
-## 7. Docker Compose optimizations
+## 5. When to read each file
 
-- **Resource limits**: Always define `deploy.resources.limits` (CPU and memory) to prevent OOM crashes that affect the host.
-- **VirtioFS**: Recommend or configure VirtioFS for volume mounts (instead of gRPC-FUSE) to improve I/O performance on macOS and Windows (WSL2).
-- **Resilience**: Include `restart: on-failure:3`.
-- **Startup order**: Use `depends_on` with `condition: service_healthy` rather than assuming boot order.
-- **Single-process paradigm**: If a container truly needs multiple processes, prefer `supervisord` over a complex sidecar network when the isolation overhead of separate containers isn't worth it.
+| File | Read when |
+|---|---|
+| `references/dockerfile-rules.md` | writing any Dockerfile (cache, mounts, apt, multi-stage, base-image table) |
+| `references/runtime-performance.md` | setting CPU/memory limits, workers, heap, or the user wants "more performance with fewer resources" |
+| `references/compose.md` | any compose file (dev or prod) |
+| `references/security.md` | hardening, secrets, scanning, SBOM/provenance, supply chain |
+| `references/ci-cache.md` | a slow build in CI, remote cache, multi-arch |
+| `references/review-checklist.md` | **reviewing** an existing Dockerfile/compose, or measuring before/after |
+| `examples/node.md` · `python-uv.md` · `go.md` · `rust.md` · `java.md` | production template for the language (each has measured numbers) |
+| `examples/compose-dev.md` · `compose-prod.md` | compose templates |
+| `examples/anti-patterns.md` | what never to produce, and how each anti-pattern is fixed |
+
+## 6. Development vs production
+
+- **Dev**: images with a shell (`-slim`), a `dev` stage, bind mounts / `develop.watch`, devDependencies installed. Distroless and scratch are fine for production, but painful for debugging. To debug distroless without adding a shell to the image, attach a tools container to its namespaces: `docker run --rm -it --pid=container:<ctr> --network=container:<ctr> busybox sh` (tested: sees the process and the port). `docker debug` exists only in Docker Desktop.
+- **Prod**: everything in §1, no source bind mounts, immutable images promoted between environments (the same digest in staging and prod, configuration through env vars/secrets).
+- On Docker Desktop (macOS/Windows), slow bind-mount I/O is solved in the Desktop settings (VirtioFS / synchronized file shares), not in the compose file. Recommend `develop.watch` for large trees.
