@@ -1,7 +1,18 @@
 # Modo B — Auditoria
 
 Revisão crítica de código existente em busca de defeitos. Cada defeito vira um
-**achado** com identificador, severidade, correção e critério de aceite.
+**achado** com identificador, severidade, reprodução, correção e critério de aceite.
+
+## Sumário
+
+- Esqueleto
+- Seção 1 — Sumário executivo
+- Seção 2 — Metodologia e limites
+- Seção 3 — Evidências medidas
+- Seções 4 e 5 — Achados (anatomia de um achado)
+- Seção 6 — Backlog priorizado
+- Seção 7 — Riscos e o que falta verificar
+- Seção 8 — Fontes consultadas
 
 ## Esqueleto
 
@@ -39,6 +50,14 @@ Revisão crítica de código existente em busca de defeitos. Cada defeito vira u
 ---
 
 ## 7. Riscos e o que falta verificar
+
+---
+
+## 8. Fontes consultadas
+
+---
+
+> <o que não rodou em ambiente ou hardware real>
 ```
 
 Os metadados são um **bloco em negrito separado por `·`**, não uma tabela — é o
@@ -85,10 +104,16 @@ desta análise`, e as métricas de referência com a fonte de cada limiar:
 A subseção de limites é obrigatória e vai num blockquote quando for crítica. Se
 nenhum tempo foi medido, diga isso aqui, não só no fim.
 
+Quando houve medição, declare aqui o protocolo uma vez — ambiente, ferramenta, n, aquecimento,
+estado quente/frio, ruído não controlado — conforme `medicao-desempenho.md` §2. Os achados passam
+a apenas referenciá-lo.
+
 ## Seção 3 — Evidências medidas
 
-Só o que foi de fato medido: saída de build, busca no bundle, contagem de bytes.
-Cada subseção tem título específico e afirmativo — `### 3.2 O import dinâmico do
+Só o que foi de fato medido: saída de build, busca no bundle, contagem de bytes, trace,
+*profile* (*flame graph*, `pprof`, trace do navegador — citando o *frame* específico). Todo número
+relevante diz **qual recurso limitou** o resultado (`medicao-desempenho.md` §4). Cada subseção tem
+título específico e afirmativo — `### 3.2 O import dinâmico do
 PDF está bem feito`, `### 3.4 Verificação negativa: estilos NÃO estão duplicados`.
 
 ## Seções 4 e 5 — Achados
@@ -131,13 +156,23 @@ this.cdr.detectChanges(); // linha 323
 
 **Custo [modelado]:** 20 ciclos de detecção por segundo × 340 componentes.
 
-**Correção:** remover a chamada e deixar o signal propagar.
+**Reprodução:** abrir um capítulo de 40 páginas no perfil Celular (CPU 4×), rolar por 5 s e gravar
+um trace; cada evento `scroll` dispara um `detectChanges` visível na trilha principal.
+
+**Correção:** remover a chamada e deixar o signal propagar, como já faz `reader.component.ts:88`.
 **Critério de aceite:** um trace de 5 s de scroll mostra zero long tasks acima de 50 ms.
 
 ---
 ````
 
 Regras do bloco final:
+- `**Reprodução:**` traz passos concretos para disparar o defeito — entrada, ambiente,
+  sequência de ações e o que observar. Quem vai corrigir começa por aqui; um achado que ninguém
+  consegue reproduzir não pode ter o critério de aceite conferido. Se o defeito vem só da
+  leitura do código e não foi disparado, diga isso na própria linha.
+- `**Correção:**` aponta o precedente interno ou a fonte que a sustenta sempre que existir
+  (`arquivo:linha` ou `[Fn]`, conforme `pesquisa.md`) — correção que já tem modelo no repositório
+  é mais barata e mais segura do que uma inventada.
 - `**Correção:**` e `**Critério de aceite:**` ficam em **linhas consecutivas**,
   sem linha em branco entre elas.
 - O critério é sempre **falsificável**: um comando, uma asserção de teste, uma
@@ -180,6 +215,9 @@ texto explica por que são uma unidade só.
 Feche com um parágrafo de quick wins: *"Os itens 2, 3 e 7 somam menos de uma hora
 de trabalho e cobrem os dois maiores custos de runtime identificados."*
 
+Itens de desempenho são aplicados **um por vez**, com nova medição no mesmo protocolo entre eles
+(`medicao-desempenho.md` §6) — senão o ganho de cada um fica inatribuível.
+
 ## Seção 7 — Riscos e o que falta verificar
 
 Lista numerada, cada item abrindo com tese em negrito e continuando com a ação
@@ -190,3 +228,8 @@ de verificação:
    correções de performance, executar um trace sobre um capítulo de 40 páginas.
 4. **U-01 tem de ser corrigido junto com U-02.** Corrigir só o primeiro expõe o segundo.
 ```
+
+## Seção 8 — Fontes consultadas
+
+Tabela de fontes no formato de `pesquisa.md`, com as fontes que sustentam as correções e os
+limiares da seção 2. Se nenhuma fonte externa foi usada, a seção diz isso em uma linha.

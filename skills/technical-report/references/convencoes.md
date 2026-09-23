@@ -1,6 +1,15 @@
 # Convenções — regras comuns aos três modos
 
-## As seis regras duras
+## Sumário
+
+- As sete regras duras
+- Forma
+- Tipografia PT-BR
+- Emojis
+- Negrito
+- Tom
+
+## As sete regras duras
 
 1. **Toda afirmação sobre código carrega `arquivo:linha`.** Formas aceitas:
    - completa: `chapters.component.ts:293-330`
@@ -26,8 +35,10 @@
 4. **Nenhuma seção termina em resumo.** Termina em recomendação ou consequência.
    Se o último parágrafo apenas repete o que veio acima, apague-o.
 
-5. **Seção final obrigatória do que NÃO foi verificado.** Hipóteses refutadas
-   ficam registradas, não apagadas — para não voltarem a ser levantadas:
+5. **Seção obrigatória do que NÃO foi verificado.** O lugar depende do modo: no A é a
+   seção 5 (Verificação, toda em `- [ ]`) somada ao blockquote de fechamento; no B, a seção 7
+   (Riscos e o que falta verificar); no C, a seção 7 (O que não foi verificado). Hipóteses
+   refutadas ficam registradas, não apagadas — para não voltarem a ser levantadas:
    > **Não há duplicação** — a hipótese está refutada e é registada aqui para não
    > voltar a ser levantada.
 
@@ -36,6 +47,12 @@
    > Nenhum item deste relatório foi executado no Quest 3. Toda a análise vem da
    > leitura do código no branch `develop` (commit `e0e7406`); a validação em
    > headset está listada na seção 5 como pendente.
+
+7. **Toda afirmação sobre comportamento externo carrega `[Fn]`.** O que uma biblioteca, API,
+   ferramenta ou plataforma faz — limites, defaults, custos, *deprecations* — é citado com a
+   fonte consultada nesta sessão, na versão instalada. As fontes ficam na última seção numerada,
+   `## N. Fontes consultadas`, logo antes do blockquote de fechamento (formato em
+   `pesquisa.md`). Comportamento externo sem fonte é `[modelado]`.
 
 ## Forma
 
@@ -61,6 +78,8 @@ crase, **nunca traduzidos**. Termos técnicos estrangeiros em itálico:
 Percentual sempre aproximado e qualificado: `~35% (3 de 8 tarefas)`.
 
 Esforço em faixa de dias-dev (`5–7 dias-dev`), abreviado `d` dentro de tabelas.
+
+Datas em ISO (`2026-09-23`). Horários sempre com fuso (`14:05 UTC`, `11:05 BRT`).
 
 ## Emojis
 
@@ -94,3 +113,6 @@ caminho, marcando que não foram causados pelo escopo atual.
 
 Seja franco sobre o que não sabe: *"é uma estimativa que hoje não é verificável"*
 vale mais do que um número inventado com duas casas decimais.
+
+Números de desempenho seguem o protocolo de `medicao-desempenho.md` — ambiente, n, estatística
+e recurso limitante declarados. Sem isso, o número é `[modelado]`, mesmo que tenha sido rodado.

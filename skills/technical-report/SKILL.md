@@ -1,6 +1,6 @@
 ---
 name: technical-report
-description: Produz relatórios técnicos estruturados em docs/reports/, cobrindo impactos, ganhos, resultados, etapas e detalhes de implementação, sempre ancorados em evidência arquivo:linha verificável. Use quando o usuário pedir um relatório técnico, uma análise de viabilidade, uma auditoria de performance ou usabilidade de um módulo, um plano de implementação detalhado, ou a documentação de um trabalho recém-concluído. NÃO use para README, documentação de API, changelog, comentários de código, mensagens de commit, descrição de Pull Request, nem para relatórios de negócio sem base em código.
+description: Produz relatórios técnicos estruturados em docs/reports/, cobrindo impactos, ganhos, resultados, etapas e detalhes de implementação, sempre ancorados em evidência arquivo:linha verificável e fundamentados na documentação oficial da versão instalada, em precedentes do próprio código e em exemplos de referência. Use quando o usuário pedir um relatório técnico, uma análise de viabilidade, uma auditoria de performance ou usabilidade de um módulo, um plano de implementação ou de validação detalhado, ou a documentação de um trabalho recém-concluído. NÃO use para README, documentação de API, changelog, comentários de código, mensagens de commit, descrição de Pull Request, nem para relatórios de negócio sem base em código.
 ---
 
 # Relatório Técnico
@@ -18,7 +18,11 @@ vizinhos estiverem em português europeu ou inglês.
    locais existentes têm precedência sobre os templates desta skill.
 3. **Colete evidência real primeiro.** Leia os arquivos citados, rode as buscas,
    confira os números. É proibido descrever código de memória ou supor linhas.
-4. Só depois comece a escrever.
+4. **Pesquise e fundamente.** Siga `references/pesquisa.md`: precedentes no próprio
+   código, versões fixadas no *lockfile*, documentação oficial dessa versão, exemplos de
+   referência e armadilhas conhecidas — na profundidade que o modo pede, e só até cada
+   decisão ter base. É o que faz o relatório melhorar a implementação, não só descrevê-la.
+5. Só depois comece a escrever.
 
 ## 1. Detectar o modo
 
@@ -34,8 +38,11 @@ adivinhe: o modo errado produz um relatório que responde à pergunta errada.
 ## 2. Regras invariáveis
 
 Leia `references/convencoes.md` antes de escrever qualquer seção. São as regras
-comuns aos três modos — evidência, marcação de números estimados, tipografia,
-emojis, negrito. Nenhuma delas é opcional.
+comuns aos três modos — evidência, fontes externas, marcação de números estimados,
+tipografia, emojis, negrito. Nenhuma delas é opcional.
+
+Se o relatório tiver qualquer número de desempenho, memória, bytes ou custo — medido ou
+planejado —, leia também `references/medicao-desempenho.md` e siga o protocolo.
 
 ## 3. Escrever
 
@@ -56,12 +63,30 @@ sem cedilha**, descrevendo o tema — por exemplo `SCREEN-FORMAT-MODAL.md`,
 Se a pasta tiver um `README.md` servindo de índice, acrescente a linha
 correspondente na tabela adequada, respeitando as colunas já existentes.
 
-## 5. Relatório ao usuário
+## 5. Validar antes de entregar
+
+1. Rode o validador de forma que acompanha esta skill (`scripts/validate_report.py`,
+   caminho relativo ao diretório da skill), a partir da raiz do projeto:
+
+   ```bash
+   python3 <diretório-da-skill>/scripts/validate_report.py docs/reports/<ARQUIVO>.md
+   ```
+
+   Corrija todo erro apontado e rode de novo até sair sem erros. Sem Python disponível,
+   confira as mesmas regras à mão em `references/convencoes.md` e diga isso ao usuário.
+2. Percorra `references/checklist.md` — o que o script não pega: fundamentação,
+   protocolo de medição, critérios falsificáveis.
+
+Exemplos completos da forma esperada: `examples/analise-com-pesquisa.md` (modo A) e
+`examples/auditoria-desempenho.md` (modo B).
+
+## 6. Relatório ao usuário
 
 Ao terminar, informe:
 
-- o caminho do arquivo gravado e o modo usado;
+- o caminho do arquivo gravado, o modo usado e o resultado do validador;
 - as afirmações que dependem de medição e ainda não foram medidas;
+- as fontes que não puderam ser consultadas e o que ficou `[modelado]` por isso;
 - **o que não foi verificado** — explicitamente, sem suavizar.
 
 Nunca declare um relatório "completo" se alguma seção ficou baseada em suposição.

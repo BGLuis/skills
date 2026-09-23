@@ -4,6 +4,18 @@ Relatório de trabalho **já concluído**. É o único modo em que o eixo é
 "antes × depois" — e por isso o único em que os números precisam vir de medição
 real, não de projeção.
 
+## Sumário
+
+- Esqueleto
+- Seção 1 — Sumário executivo
+- Seção 2 — Impactos e ganhos
+- Seção 3 — Etapas executadas
+- Seção 4 — Detalhes de implementação
+- Seção 5 — Arquivos tocados
+- Seção 6 — Verificação executada
+- Seção 7 — O que não foi verificado
+- Seção 8 — Fontes consultadas (quando houver)
+
 ## Esqueleto
 
 ```markdown
@@ -46,6 +58,10 @@ real, não de projeção.
 
 ---
 
+## 8. Fontes consultadas            (só se o relatório afirmar comportamento externo)
+
+---
+
 > <o que não rodou em ambiente ou hardware real>
 ```
 
@@ -62,16 +78,26 @@ frase sobre o estado em que o módulo ficou, não sobre o esforço gasto.
 O núcleo do relatório. Tabela antes/depois:
 
 ```markdown
-| Métrica | Antes | Depois | Variação |
-|---|---|---|---|
-| Bundle inicial (transferido) | 152,54 kB | 98,20 kB | **−35,6 %** |
-| Long tasks em 5 s de scroll | 14 | 0 | **−14** |
+| Métrica | Antes | Depois | Variação | Fonte |
+|---|---|---|---|---|
+| Bundle inicial (transferido) | 152,54 kB | 98,20 kB | **−35,6 %** | `ng build`, 1 build determinístico |
+| Long tasks em 5 s de scroll (mediana, n = 10) | 14 | 0 | **−14** | trace DevTools, CPU 4× |
+| Tempo de abertura do capítulo (mediana · p95, n = 10) | 840 · 1.120 ms | 310 · 390 ms | **−63 %** | `hyperfine --warmup 3` |
+| CPU por página renderizada | 38 ms | 11 ms | **−71 %** | derivado da linha acima ÷ 22 páginas |
 ```
+
+A última linha é o ganho **por unidade de trabalho** — ao menos uma linha assim é obrigatória
+quando o trabalho foi de desempenho ou de custo (`medicao-desempenho.md` §5).
 
 Regras desta seção, sem exceção:
 
 - Cada linha declara **como foi medido** — na própria tabela, em coluna `Fonte`,
   ou num parágrafo logo abaixo. Sem origem, o número não entra.
+- Tempo e latência seguem o protocolo de `medicao-desempenho.md`: ambiente, n, aquecimento,
+  estado quente/frio e mediana/p95 declarados, **o mesmo protocolo** antes e depois. Antes e
+  depois medidos em máquinas ou condições diferentes não são comparáveis — diga isso em vez de
+  publicar a variação.
+- Diga qual recurso limitava antes e qual limita agora: o próximo trabalho começa daí.
 - Ganho não medido leva `[modelado]` e a tabela diz explicitamente que é
   estimativa. Uma tabela mista precisa separar as duas coisas visualmente.
 - Se nada foi medido, **a seção diz isso na primeira linha** em vez de exibir
@@ -130,6 +156,9 @@ alteração. Inclua testes, recursos e documentação atualizada.
 - [ ] Trace de scroll no perfil Celular — depende de dispositivo físico.
 ```
 
+Todo item de medição marcado `[x]` aponta a saída bruta (JSON do benchmark, arquivo de trace,
+log do build) ou o caminho onde ela ficou. Sem a saída bruta, a medição não é reproduzível.
+
 Marcar `[x]` algo que não rodou invalida o relatório inteiro. Na dúvida, deixe
 `- [ ]` e explique na seção 7.
 
@@ -138,3 +167,12 @@ Marcar `[x]` algo que não rodou invalida o relatório inteiro. Na dúvida, deix
 Riscos residuais e lacunas de verificação, em lista numerada, cada item abrindo
 com tese em negrito. Inclua o que a implementação deixou em aberto de propósito
 e o que só apareceria em produção.
+
+Inclua também **onde tivemos sorte**: o que deu certo por acaso e não por decisão — um dado de
+teste que não exercitou o caso ruim, uma versão de dependência que por acaso já trazia a correção.
+Sorte não registrada vira suposição no próximo trabalho.
+
+## Seção 8 — Fontes consultadas
+
+Só existe quando o relatório afirma algo sobre biblioteca, API ou plataforma externa (regra 7 de
+`convencoes.md`) — p.ex. para justificar uma decisão da seção 4. Formato em `pesquisa.md`.
