@@ -77,7 +77,7 @@ cd skills
 | Skill | Descrição & Gatilho Principal | Foco & Recursos |
 | :--- | :--- | :--- |
 | [`create-skill`](./skills/create-skill/SKILL.md) | Cria, audita, padroniza e repara Agent Skills contra o *composition cliff*. | Meta-skill, arquitetura hub+symlink, portabilidade entre Claude/Gemini/Copilot. |
-| [`docker-optimizer`](./skills/docker-optimizer/SKILL.md) | Otimiza `Dockerfile` e `docker-compose.yml` para alta performance e segurança. | Multi-stage builds, cache mounts, redução drástica de imagem e relatórios antes/depois. |
+| [`docker-optimizer`](./skills/docker-optimizer/SKILL.md) | Gera, revisa e ajusta `Dockerfile` e `compose.yaml`: imagens mínimas, builds com cache, containers endurecidos e máxima performance com poucos recursos. | Exemplos validados (Node, Python/uv, Go, Rust, Java) com números medidos, tuning de runtime sob limites (heap, workers, GOMAXPROCS), hardening de compose e cache em CI. |
 | [`find-docs`](./skills/find-docs/SKILL.md) | Consulta documentações, APIs e SDKs atualizados em tempo real via Context7. | Evita alucinações de bibliotecas modernas, com limites negativos rigorosos. |
 | [`github-actions`](./skills/github-actions/SKILL.md) | Constrói e audita pipelines de CI/CD em `.github/workflows/`. | Segurança (permissões mínimas, pinned hashes), cache de dependências e paralelismo. |
 | [`github-repo-setup`](./skills/github-repo-setup/SKILL.md) | Padronização interativa da documentação de repositórios (README, LICENSE, etc.). | Baseado no padrão de excelência `bgluis-template` e badges `shieldcn.dev`. |
