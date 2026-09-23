@@ -1,0 +1,13 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 Documentation
+    url: https://github.com/{{OWNER}}/{{REPO}}#readme
+    about: Read the README before opening an issue
+  # TEMPLATE: only if the repository has Discussions enabled; otherwise delete this item.
+  - name: 💬 Questions
+    url: https://github.com/{{OWNER}}/{{REPO}}/discussions
+    about: General questions go to Discussions
+  # TEMPLATE: only if SECURITY.md uses GitHub private reporting; otherwise delete this item.
+  - name: 🔒 Security vulnerability
+    url: https://github.com/{{OWNER}}/{{REPO}}/security/advisories/new
+    about: Report vulnerabilities privately, never in a public issue

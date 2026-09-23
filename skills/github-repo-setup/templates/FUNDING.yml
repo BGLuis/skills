@@ -1,0 +1,10 @@
+# TEMPLATE: mantenha só as plataformas que o usuário informou na Fase 1. Nunca invente perfis.
+# Outras chaves aceitas: liberapay, polar, thanks_dev, issuehunt, tidelift, community_bridge.
+# Até 4 usuários em github e até 4 URLs em custom (URL com ":" vai entre aspas).
+# Referência: https://docs.github.com/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/displaying-a-sponsor-button-in-your-repository
+github: ["{{GITHUB_SPONSORS_USER}}"]
+open_collective: "{{OPEN_COLLECTIVE_SLUG}}"
+ko_fi: "{{KO_FI_USER}}"
+patreon: "{{PATREON_USER}}"
+buy_me_a_coffee: "{{BUY_ME_A_COFFEE_USER}}"
+custom: ["{{CUSTOM_URL}}"]

@@ -1,0 +1,17 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+<!-- TEMPLATE: use only the categories below, in this order, and only those with entries:
+### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
+Do not invent history: with no tags/releases in the repository, leave [Unreleased] empty. -->

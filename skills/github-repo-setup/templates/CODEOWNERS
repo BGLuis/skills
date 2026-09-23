@@ -1,0 +1,4 @@
+# TEMPLATE: donos informados pelo usuário na Fase 1 (@usuario ou @org/time). Nunca invente.
+# A última regra que casar com o caminho vence.
+# Referência: https://docs.github.com/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+*       {{DEFAULT_OWNERS}}

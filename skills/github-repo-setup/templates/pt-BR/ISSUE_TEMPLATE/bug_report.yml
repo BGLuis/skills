@@ -1,0 +1,52 @@
+name: 🐛 Reportar bug
+description: Algo não está funcionando como deveria
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por reportar! Antes de enviar, confira se já não existe uma issue igual.
+  - type: textarea
+    id: description
+    attributes:
+      label: O que aconteceu?
+      description: Descrição clara do problema.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Passos para reproduzir
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Comportamento esperado
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Versão ou commit
+      placeholder: v1.2.3 ou hash do commit
+    validations:
+      required: false
+  - type: textarea
+    id: environment
+    attributes:
+      label: Ambiente
+      description: Sistema operacional, versões de runtime, navegador etc.
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs e capturas de tela
+      render: shell
+    validations:
+      required: false

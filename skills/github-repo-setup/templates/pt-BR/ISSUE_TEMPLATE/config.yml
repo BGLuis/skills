@@ -1,0 +1,13 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 Documentação
+    url: https://github.com/{{OWNER}}/{{REPO}}#readme
+    about: Leia o README antes de abrir uma issue
+  # TEMPLATE: só se o repositório tiver Discussions habilitado; senão apague este item.
+  - name: 💬 Dúvidas
+    url: https://github.com/{{OWNER}}/{{REPO}}/discussions
+    about: Perguntas gerais vão para as Discussions
+  # TEMPLATE: só se SECURITY.md usar o reporte privado do GitHub; senão apague este item.
+  - name: 🔒 Vulnerabilidade de segurança
+    url: https://github.com/{{OWNER}}/{{REPO}}/security/advisories/new
+    about: Reporte vulnerabilidades de forma privada, nunca em issue pública
