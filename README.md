@@ -82,7 +82,7 @@ cd skills
 | [`github-actions`](./skills/github-actions/SKILL.md) | Constrói, audita e otimiza pipelines de CI/CD em `.github/workflows/`. | Segurança (permissões mínimas, SHA pins, OIDC, `cache-mode`), máximo desempenho com o mínimo de minutos (menos jobs, cache correto, runners certos), exemplos medidos em runners reais. |
 | [`github-repo-setup`](./skills/github-repo-setup/SKILL.md) | Padronização interativa da documentação de repositórios (README, LICENSE, etc.). | Baseado no padrão de excelência `bgluis-template` e badges `shieldcn.dev`. |
 | [`technical-report`](./skills/technical-report/SKILL.md) | Elabora relatórios técnicos estruturados em `docs/reports/`. | Análise, auditoria e pós-implementação 100% ancorados em evidências `arquivo:linha`. |
-| [`testing-strategy`](./skills/testing-strategy/SKILL.md) | Cria e audita suítes de teste para verificação de intenção real de regras de negócio. | Doutrina agnóstica de testes com referências para JS/TS, Python, Go e Rust. |
+| [`testing-strategy`](./skills/testing-strategy/SKILL.md) | Cria e audita suítes de teste para verificação de intenção real de regras de negócio e torna-as rápidas e baratas de executar. | Doutrina agnóstica de testes (falsificabilidade, mutation e property-based testing, orçamento de desempenho) com referências para JS/TS, Python, Go e Rust. |
 
 ---
 
