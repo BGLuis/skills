@@ -44,7 +44,7 @@ Uso:
   curl -fsSL https://raw.githubusercontent.com/BGLuis/skills/main/install.sh | bash -s -- [OPÇÕES]
 
 Opções:
-  --all             Instala todas as 7 skills autorais @BGLuis (padrão)
+  --all             Instala todas as 10 skills autorais @BGLuis (padrão)
   --skill <nome>    Instala apenas uma skill específica
   --agent <nome>    Alvo específico: gemini, claude, copilot, cursor ou all (padrão: auto-detect)
   --copy            Copia arquivos em vez de criar links simbólicos (symlinks)

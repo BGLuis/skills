@@ -83,7 +83,38 @@ cd skills
 | [`github-repo-setup`](./skills/github-repo-setup/SKILL.md) | Gera e padroniza, de forma interativa, README (um arquivo por idioma), LICENSE, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, SUPPORT, CHANGELOG, templates de Issue/PR, FUNDING e CODEOWNERS. | Modelos próprios em pt-BR e en, imagens só do `shieldcn.dev` (banner, badges claro/escuro, contribuidores), licença pela API do GitHub e validador de README (`scripts/validate_readme.py`). |
 | [`technical-report`](./skills/technical-report/SKILL.md) | Elabora relatórios técnicos estruturados em `docs/reports/`, fundamentados em documentação oficial e precedentes do código. | Análise, auditoria e pós-implementação ancorados em `arquivo:linha` e fontes `[Fn]`, com protocolo de medição de desempenho e validador de forma (`scripts/validate_report.py`). |
 | [`testing-strategy`](./skills/testing-strategy/SKILL.md) | Cria e audita suítes de teste para verificação de intenção real de regras de negócio e torna-as rápidas e baratas de executar. | Doutrina agnóstica de testes (falsificabilidade, mutation e property-based testing, orçamento de desempenho) com referências para JS/TS, Python, Go e Rust. |
+| [`ui-design-system`](./skills/ui-design-system/SKILL.md) | Aplica regras numéricas e fundamentadas para consistência visual de UI: escalas de cor e tokens semânticos, grades de espaçamento, proporção de `border-radius` e escala tipográfica. | Fontes nomeadas (Tailwind, Radix Colors, Material Design 3, WCAG, Apple HIG, *Refactoring UI*), checklist de revisão e exemplos antes/depois. |
+| [`web-performance-optimizer`](./skills/web-performance-optimizer/SKILL.md) | Audita e otimiza a performance real de sites com limiares de Core Web Vitals e benchmarks públicos (CrUX, HTTP Archive, Lighthouse, WebPageTest). | Depuração por navegador e dispositivo (HAR, Firefox Profiler, particularidades do Safari/iOS), formatos de imagem, lazy-loading e resource hints. |
 | [`webxr-optimizer`](./skills/webxr-optimizer/SKILL.md) | Otimiza, revisa e depura sites WebXR (VR/AR) em three.js, React Three Fiber/`@react-three/xr` ou WebXR puro para Meta Quest, Apple Vision Pro, Android XR e celulares ARCore. | Budgets de frame e fluxo de profiling da Meta, matriz de recursos por dispositivo verificada em fonte primária, armadilhas de input (pinça do Vision Pro), testes com IWER e scanner de APIs depreciadas (`scripts/scan_deprecated.py`). |
+
+---
+
+# 🔄 Como Atualizar
+
+### Via `npx skills`
+
+```sh
+# Atualiza todas as skills instaladas:
+npx skills update
+
+# Ou apenas uma skill específica:
+npx skills update docker-optimizer
+```
+
+### Via `install.sh`
+
+Com links simbólicos (padrão), um `git pull` no repositório já atualiza as skills existentes. Execute o `install.sh` novamente para vincular skills novas e para refazer as cópias caso tenha usado `--copy`:
+
+```sh
+# Instalação via curl (hub em ~/.agents):
+git -C ~/.agents pull
+~/.agents/install.sh
+
+# Instalação a partir de um clone local:
+cd skills
+git pull
+./install.sh
+```
 
 ---
 
