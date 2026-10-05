@@ -18,6 +18,7 @@ CORE_SKILLS=(
   "testing-strategy"
   "ui-design-system"
   "web-performance-optimizer"
+  "webxr-optimizer"
 )
 
 # Colors

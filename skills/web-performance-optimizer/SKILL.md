@@ -1,6 +1,6 @@
 ---
 name: web-performance-optimizer
-description: Audits and optimizes real-world website performance using sourced Core Web Vitals thresholds, public benchmarks (CrUX, HTTP Archive/Web Almanac, Lighthouse, WebPageTest), and per-browser/per-device debugging workflows -- HAR file export and analysis, the Firefox Profiler, and Safari/iOS-specific quirks. Use when the user asks to speed up a website, fix a Core Web Vital, debug a HAR file, diagnose a browser-specific (especially Firefox or Safari/iOS) performance or layout bug, choose an image format or lazy-loading strategy, or review page metadata/resource hints. Do NOT use for backend/API/database performance, native mobile app performance, or pure visual UI design (see ui-design-system for that).
+description: Audits and optimizes real-world website performance using sourced Core Web Vitals thresholds, public benchmarks (CrUX, HTTP Archive/Web Almanac, Lighthouse, WebPageTest), and per-browser/per-device debugging workflows -- HAR file export and analysis, the Firefox Profiler, and Safari/iOS-specific quirks. Use when the user asks to speed up a website, fix a Core Web Vital, debug a HAR file, diagnose a browser-specific (especially Firefox or Safari/iOS) performance or layout bug, choose an image format or lazy-loading strategy, or review page metadata/resource hints. Do NOT use for backend/API/database performance, native mobile app performance, pure visual UI design (see ui-design-system for that), or frame rate inside WebXR/VR/AR sessions (see webxr-optimizer).
 ---
 
 # Web Performance Optimizer
