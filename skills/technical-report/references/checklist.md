@@ -1,39 +1,45 @@
-# Checklist de entrega
+# Delivery checklist
 
-Percorra na ordem, depois de rodar `scripts/validate_report.py`. O script confere a forma; esta
-lista confere o que só uma leitura crítica pega. Um item que não passa volta para o texto — não
-para a seção de limites.
+Go through it in order, after running `scripts/validate_report.py`. The script checks the shape;
+this list checks what only a critical reading catches. An item that fails goes back into the
+text — not into the limits section.
 
-## 1. Fundamentação
-- [ ] A pesquisa seguiu a proporção do modo (`pesquisa.md`): completa em A, média em B, mínima em C?
-- [ ] Cada decisão ou correção tem uma base de nível 1 a 3 — precedente `arquivo:linha`, doc oficial
-      ou exemplo do mantenedor — ou está marcada `[modelado]` com a razão?
-- [ ] Os precedentes internos foram procurados pelo padrão e pelo sintoma, não só pelo nome do módulo?
-- [ ] Toda divergência de um precedente tem justificativa escrita?
-- [ ] A versão de cada dependência foi lida no *lockfile*, e a doc consultada é dessa versão?
-- [ ] Nenhuma afirmação sobre API externa vem da memória do modelo?
+## 1. Grounding
+- [ ] Did the research follow the depth of the mode (`research.md`): full in A, medium in B,
+      minimal in C?
+- [ ] Does each decision or fix have a level 1 to 3 basis — `file:line` precedent, official doc,
+      or maintainer example — or is it marked `[modeled]` with the reason?
+- [ ] Were internal precedents searched by pattern and by symptom, not just by module name?
+- [ ] Does every divergence from a precedent have a written justification?
+- [ ] Was the version of each dependency read from the lockfile, and is the doc consulted for
+      that version?
+- [ ] Does no claim about an external API come from the model's memory?
 
-## 2. Evidência
-- [ ] Toda afirmação sobre código tem `arquivo:linha`, e as linhas foram abertas nesta sessão?
-- [ ] Toda ausência tem a busca de resultado zero com o comando?
-- [ ] Todo número está medido (com origem) ou marcado `[modelado]`?
-- [ ] Todo número de desempenho declara ambiente, ferramenta, n, estatística e recurso limitante
-      (`medicao-desempenho.md`)?
-- [ ] Antes e depois foram medidos com o mesmo protocolo?
+## 2. Evidence
+- [ ] Does every claim about code have `file:line`, and were those lines opened in this session?
+- [ ] Does every absence have the zero-result search with the command?
+- [ ] Is every number measured (with origin) or marked `[modeled]`?
+- [ ] Does every performance number declare environment, tool, n, statistic, and limiting
+      resource (`performance-measurement.md`)?
+- [ ] Were before and after measured with the same protocol?
 
-## 3. Acionabilidade
-- [ ] Todo critério de aceite é falsificável — um comando, uma asserção, uma observação de trace?
-- [ ] Todo achado do modo B tem `**Reprodução:**` que outra pessoa consegue seguir?
-- [ ] Cada item de verificação do modo A aponta a decisão ou fonte que valida?
-- [ ] Nenhuma seção termina em resumo?
-- [ ] Os não-objetivos (modo A) e os desvios do plano (modo C) estão escritos, não implícitos?
+## 3. Actionability
+- [ ] Is every acceptance criterion falsifiable — a command, an assertion, a trace observation?
+- [ ] Does every mode B finding have a `**Reproduction:**` someone else can follow?
+- [ ] Does each mode A verification item point to the decision or source it validates?
+- [ ] Does no section end in a summary?
+- [ ] Are the non-goals (mode A) and the deviations from the plan (mode C) written, not implied?
 
-## 4. Honestidade
-- [ ] A seção do que não foi verificado lista tudo o que ficou em suposição, incluindo fontes que
-      não puderam ser consultadas?
-- [ ] Nenhum checkbox está marcado `[x]` sem ter rodado nesta sessão?
-- [ ] Hipóteses refutadas continuam registradas?
+## 4. Honesty
+- [ ] Does the not-verified section list everything left as assumption, including sources that
+      could not be consulted?
+- [ ] Is no checkbox marked `[x]` without having run in this session?
+- [ ] Are refuted hypotheses still on record?
 
-## Ao entregar
-Informe o caminho, o modo, o resultado do validador, as fontes que não puderam ser consultadas e o
-que ficou sem verificar — sem suavizar.
+## 5. Language
+- [ ] Was the report language chosen by the rule in `SKILL.md` §0, and is it used consistently —
+      section titles, labels, and typography from `locales.md`?
+
+## On delivery
+State the path, the mode, the report language and where it came from, the validator result, the
+sources that could not be consulted, and what was left unverified — without softening.

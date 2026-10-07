@@ -1,93 +1,105 @@
 ---
 name: technical-report
-description: Produz relatórios técnicos estruturados em docs/reports/, cobrindo impactos, ganhos, resultados, etapas e detalhes de implementação, sempre ancorados em evidência arquivo:linha verificável e fundamentados na documentação oficial da versão instalada, em precedentes do próprio código e em exemplos de referência. Use quando o usuário pedir um relatório técnico, uma análise de viabilidade, uma auditoria de performance ou usabilidade de um módulo, um plano de implementação ou de validação detalhado, ou a documentação de um trabalho recém-concluído. NÃO use para README, documentação de API, changelog, comentários de código, mensagens de commit, descrição de Pull Request, nem para relatórios de negócio sem base em código.
+description: Produces structured technical reports in docs/reports/ covering impacts, gains, results, steps, and implementation details, always anchored in verifiable file:line evidence and grounded in the official documentation of the installed version, in precedents from the codebase itself, and in reference examples. Writes the report in the language the repository asks for, or asks the user. Use when the user asks for a technical report, a feasibility analysis, a performance or usability audit of a module, a detailed implementation or validation plan, or documentation of work just completed. Do NOT use for README, API documentation, changelog, code comments, commit messages, Pull Request descriptions, business reports with no basis in code, or when the user wants the result as GitHub issues instead of a file (that is technical-issues).
 ---
 
-# Relatório Técnico
+# Technical Report
 
-Atue como um engenheiro sênior fazendo revisão crítica. Um relatório só vale se
-cada afirmação puder ser conferida no repositório. Prosa sem evidência é ruído.
+Act as a senior engineer doing a critical review. A report is only worth something if every
+claim can be checked against the repository. Prose without evidence is noise.
 
-Escreva sempre em **português do Brasil**, mesmo quando o código ou os relatórios
-vizinhos estiverem em português europeu ou inglês.
+## 0. Before writing
 
-## 0. Antes de escrever
+1. Find the project root and the `docs/reports/` folder. Create it if it does not exist.
+2. If the folder already has reports, read the index and one or two of them. Existing local
+   conventions take precedence over this skill's templates.
+3. **Choose the report language**, first match wins:
+   1. the language the user asked for explicitly;
+   2. a written rule in the repository — `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`,
+      `.github/copilot-instructions.md`, `CONTRIBUTING*`, `docs/reports/README.md` — about the
+      language of documentation or reports;
+   3. the language of the reports already in `docs/reports/`.
 
-1. Identifique a raiz do projeto e a pasta `docs/reports/`. Se não existir, crie.
-2. Se a pasta já tiver relatórios, leia o índice e um ou dois deles. Convenções
-   locais existentes têm precedência sobre os templates desta skill.
-3. **Colete evidência real primeiro.** Leia os arquivos citados, rode as buscas,
-   confira os números. É proibido descrever código de memória ou supor linhas.
-4. **Pesquise e fundamente.** Siga `references/pesquisa.md`: precedentes no próprio
-   código, versões fixadas no *lockfile*, documentação oficial dessa versão, exemplos de
-   referência e armadilhas conhecidas — na profundidade que o modo pede, e só até cada
-   decisão ter base. É o que faz o relatório melhorar a implementação, não só descrevê-la.
-5. Só depois comece a escrever.
+   With no signal, or with signals that conflict, **ask the user** before writing, suggesting
+   the language of the repository's general docs (e.g. the README). Then take the section
+   titles, field labels, closed vocabularies, and typography of that language from
+   `references/locales.md`. Identifiers, file names, APIs, and commands are never translated.
+4. **Collect real evidence first.** Read the files you cite, run the searches, check the
+   numbers. Describing code from memory or guessing line numbers is forbidden.
+5. **Research and ground.** Follow `references/research.md`: precedents in the codebase,
+   versions pinned in the lockfile, official documentation for that version, reference
+   examples, and known pitfalls — at the depth the mode asks for, and only until each decision
+   has a basis. That is what makes the report improve the implementation, not just describe it.
+6. Only then start writing.
 
-## 1. Detectar o modo
+## 1. Detect the mode
 
-| Modo | Quando | Template |
+| Mode | When | Template |
 |---|---|---|
-| **A — Análise/proposta** | Trabalho ainda não feito: "o que falta para", "como implementar X", viabilidade, planejamento | `references/modo-analise.md` |
-| **B — Auditoria** | Revisar código existente em busca de defeitos: "analise a performance de", "audite", "que problemas tem" | `references/modo-auditoria.md` |
-| **C — Pós-implementação** | O trabalho acabou de ser feito: "documente o que fizemos", "relatório das mudanças" | `references/modo-pos-implementacao.md` |
+| **A — Analysis/proposal** | Work not done yet: "what is missing to", "how to implement X", feasibility, planning | `references/mode-analysis.md` |
+| **B — Audit** | Review existing code for defects: "analyze the performance of", "audit", "what problems does it have" | `references/mode-audit.md` |
+| **C — Post-implementation** | The work was just done: "document what we did", "report on the changes" | `references/mode-post-implementation.md` |
 
-Se o pedido couber em mais de um modo, **pergunte ao usuário qual deles**. Não
-adivinhe: o modo errado produz um relatório que responde à pergunta errada.
+If the request fits more than one mode, **ask the user which one**. Do not guess: the wrong
+mode produces a report that answers the wrong question.
 
-## 2. Regras invariáveis
+## 2. Invariant rules
 
-Leia `references/convencoes.md` antes de escrever qualquer seção. São as regras
-comuns aos três modos — evidência, fontes externas, marcação de números estimados,
-tipografia, emojis, negrito. Nenhuma delas é opcional.
+Read `references/conventions.md` before writing any section. These are the rules shared by the
+three modes — evidence, external sources, marking estimated numbers, typography, emojis, bold.
+None of them is optional.
 
-Se o relatório tiver qualquer número de desempenho, memória, bytes ou custo — medido ou
-planejado —, leia também `references/medicao-desempenho.md` e siga o protocolo.
+If the report has any performance, memory, byte, or cost number — measured or planned — also
+read `references/performance-measurement.md` and follow the protocol.
 
-## 3. Escrever
+## 3. Write
 
-Leia o template do modo detectado, em `references/`, e siga o esqueleto de seções
-dele. Os templates trazem os títulos literais das seções e a anatomia interna de
-cada bloco.
+Read the template for the detected mode in `references/` and follow its section skeleton. The
+templates give the literal section titles (in English; translate them with
+`references/locales.md`) and the internal anatomy of each block.
 
-Adapte a profundidade ao escopo: um relatório de seção fica em torno de 120–160
-linhas; um relatório de feature ou pedido grande, em torno de 240–320. Passe de
-400 apenas quando houver um inventário exaustivo a apresentar.
+Fit the depth to the scope: a report on one section stays around 120–160 lines; a report on a
+feature or a large request, around 240–320. Go past 400 only when there is an exhaustive
+inventory to present.
 
-## 4. Nomear e gravar
+## 4. Name and save
 
-Grave em `docs/reports/` com o nome em **MAIÚSCULAS e kebab-case, sem acento e
-sem cedilha**, descrevendo o tema — por exemplo `SCREEN-FORMAT-MODAL.md`,
-`INPUT-TEXTO-UNIFICADO.md`. Não use data no nome.
+Save in `docs/reports/` with a name in **UPPERCASE kebab-case, ASCII only (no accents or
+cedillas)**, describing the topic — for example `SCREEN-FORMAT-MODAL.md`,
+`UNIFIED-TEXT-INPUT.md`. Do not put a date in the name.
 
-Se a pasta tiver um `README.md` servindo de índice, acrescente a linha
-correspondente na tabela adequada, respeitando as colunas já existentes.
+If the folder has a `README.md` acting as an index, add the matching row to the right table,
+respecting the columns already there.
 
-## 5. Validar antes de entregar
+## 5. Validate before delivering
 
-1. Rode o validador de forma que acompanha esta skill (`scripts/validate_report.py`,
-   caminho relativo ao diretório da skill), a partir da raiz do projeto:
+1. Run the shape validator that ships with this skill (`scripts/validate_report.py`, path
+   relative to the skill directory) from the project root:
 
    ```bash
-   python3 <diretório-da-skill>/scripts/validate_report.py docs/reports/<ARQUIVO>.md
+   python3 <skill-directory>/scripts/validate_report.py docs/reports/<FILE>.md
    ```
 
-   Corrija todo erro apontado e rode de novo até sair sem erros. Sem Python disponível,
-   confira as mesmas regras à mão em `references/convencoes.md` e diga isso ao usuário.
-2. Percorra `references/checklist.md` — o que o script não pega: fundamentação,
-   protocolo de medição, critérios falsificáveis.
+   It detects English or Brazilian Portuguese labels by itself (`--lang en|pt-BR` forces one).
+   For any other language it runs only the structural checks and warns; check the
+   label-dependent rules of `references/conventions.md` by hand and say so to the user. Fix
+   every error reported and run it again until it exits clean. Without Python available, check
+   the same rules by hand and say so to the user.
+2. Walk through `references/checklist.md` — what the script does not catch: grounding,
+   measurement protocol, falsifiable criteria.
 
-Exemplos completos da forma esperada: `examples/analise-com-pesquisa.md` (modo A) e
-`examples/auditoria-desempenho.md` (modo B).
+Full examples of the expected shape: `examples/analysis-with-research.md` (mode A) and
+`examples/performance-audit.md` (mode B).
 
-## 6. Relatório ao usuário
+## 6. Report to the user
 
-Ao terminar, informe:
+When done, tell the user, in the language of the conversation:
 
-- o caminho do arquivo gravado, o modo usado e o resultado do validador;
-- as afirmações que dependem de medição e ainda não foram medidas;
-- as fontes que não puderam ser consultadas e o que ficou `[modelado]` por isso;
-- **o que não foi verificado** — explicitamente, sem suavizar.
+- the path of the saved file, the mode used, the report language and where that choice came
+  from, and the validator result;
+- the claims that depend on measurement and have not been measured yet;
+- the sources that could not be consulted and what was left `[modeled]` because of it;
+- **what was not verified** — explicitly, without softening.
 
-Nunca declare um relatório "completo" se alguma seção ficou baseada em suposição.
-Diga qual, e por quê.
+Never declare a report "complete" if any section was based on assumption. Say which one, and
+why.
