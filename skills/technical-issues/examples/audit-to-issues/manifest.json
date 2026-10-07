@@ -1,0 +1,12 @@
+{
+  "repo": "acme/shop-api",
+  "language": "en",
+  "issues": [
+    {"key": "epic", "kind": "epic", "file": "epic.md",
+     "title": "Audit: CSV export holds the whole month in memory", "labels": ["performance"]},
+    {"key": "P-02", "kind": "finding", "file": "p-02.md", "parent": "epic",
+     "title": "Export: N+1 query for the customer name", "labels": ["performance"]},
+    {"key": "P-01", "kind": "finding", "file": "p-01.md", "parent": "epic",
+     "title": "Export: stream rows instead of loading the whole result", "labels": ["performance"]}
+  ]
+}

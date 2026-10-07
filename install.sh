@@ -14,6 +14,7 @@ CORE_SKILLS=(
   "find-docs"
   "github-actions"
   "github-repo-setup"
+  "technical-issues"
   "technical-report"
   "testing-strategy"
   "ui-design-system"
