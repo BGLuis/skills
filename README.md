@@ -72,6 +72,24 @@ cd skills
 
 ---
 
+### Método 3: Baixar o ZIP da Release
+
+Cada [release](https://github.com/BGLuis/skills/releases/latest) traz `all-skills.zip` (todas as skills) e um `<skill>.zip` por skill, sem precisar de git, Node ou `curl | bash`. Os nomes não levam versão, então o link `latest/download` é estável:
+
+```sh
+# Todas as skills (cada uma vira uma pasta em ~/.claude/skills):
+curl -fsSLO https://github.com/BGLuis/skills/releases/latest/download/all-skills.zip
+unzip all-skills.zip -d ~/.claude/skills
+
+# Ou só uma skill (ex: docker-optimizer):
+curl -fsSLO https://github.com/BGLuis/skills/releases/latest/download/docker-optimizer.zip
+unzip docker-optimizer.zip -d ~/.claude/skills
+```
+
+> A `technical-issues` depende da `technical-report`: instale as duas juntas ao usar ZIPs individuais.
+
+---
+
 # 📦 Catálogo de Skills
 
 | Skill | Descrição & Gatilho Principal | Foco & Recursos |
