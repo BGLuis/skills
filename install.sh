@@ -31,6 +31,14 @@ CYAN="\033[0;36m"
 RED="\033[0;31m"
 RESET="\033[0m"
 
+# Skills que outra skill carrega em tempo de uso. Um case em vez de array associativo
+# porque o bash 3.2 do macOS não tem `declare -A`.
+skill_deps() {
+  case "$1" in
+    technical-issues) echo "technical-report" ;;
+  esac
+}
+
 info()    { echo -e "${BLUE}[INFO]${RESET} $*"; }
 success() { echo -e "${GREEN}[OK]${RESET} $*"; }
 warn()    { echo -e "${YELLOW}[WARN]${RESET} $*"; }
@@ -129,6 +137,10 @@ SKILLS_TO_INSTALL=()
 if [[ "${MODE}" == "single" ]]; then
   if [[ -d "${SOURCE_SKILLS_DIR}/${CHOSEN_SKILL}" ]]; then
     SKILLS_TO_INSTALL=("${CHOSEN_SKILL}")
+    for dep in $(skill_deps "${CHOSEN_SKILL}"); do
+      info "${CHOSEN_SKILL} depende de ${dep}; instalando junto."
+      SKILLS_TO_INSTALL+=("${dep}")
+    done
   else
     error "Skill '${CHOSEN_SKILL}' não encontrada em ${SOURCE_SKILLS_DIR}."
     exit 1

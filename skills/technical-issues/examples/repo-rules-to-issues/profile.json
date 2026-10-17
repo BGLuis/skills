@@ -1,0 +1,28 @@
+{
+  "sources": [
+    "AGENTS.md section 10 (Hierarchy, Labels, Creation, Statuses)",
+    ".github/ISSUE_TEMPLATE/fix.yml (title prefix, labels, fields, default Definition of Done)",
+    "gh issue list --state all -L 10: recent issues use `##` headings"
+  ],
+  "title_pattern": "^(feat|fix|refactor|chore|docs|spike): .+$",
+  "epic_label": "epic",
+  "epic_title_pattern": "^Epic: .+$",
+  "labels": [
+    {"pattern": "^type:", "min": 1, "max": 1},
+    {"pattern": "^area:", "min": 1}
+  ],
+  "require_milestone": true,
+  "require_parent": true,
+  "heading_level": 2,
+  "sections": {
+    "finding": ["Goal", "Context", "Scope", "Depends on", "Definition of Done"]
+  },
+  "required_text": {
+    "finding": ["`just check` passes with zero lint exceptions"]
+  },
+  "forbidden_fields": ["**Severity:**", "**Effort:**", "**Priority:**"],
+  "post_create": [
+    "Set Priority and Effort of each issue in the Project (they never go in the body)",
+    "Run `just project-sync --dry-run`, then `just project-sync`, to move the cards"
+  ]
+}

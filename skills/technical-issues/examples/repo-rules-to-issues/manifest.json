@@ -1,0 +1,15 @@
+{
+  "repo": "acme/caixa",
+  "language": "en",
+  "mode": "audit",
+  "visibility": "private",
+  "profile": "profile.json",
+  "issues": [
+    {"key": "P-01", "kind": "finding", "file": "p-01.md", "parent": "#98", "milestone": "v1",
+     "title": "fix: project sync reads a whole Effort as missing",
+     "labels": ["type:fix", "area:tooling"], "blocked_by": ["#92"]},
+    {"key": "P-02", "kind": "finding", "file": "p-02.md", "parent": "#98", "milestone": "v1",
+     "title": "fix: project sync stops after the first page of items",
+     "labels": ["type:fix", "area:tooling"], "blocked_by": ["P-01"]}
+  ]
+}
