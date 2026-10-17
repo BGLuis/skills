@@ -1,0 +1,15 @@
+{
+  "repo": "acme/leitor",
+  "language": "pt-BR",
+  "mode": "proposal",
+  "visibility": "public",
+  "issues": [
+    {"key": "epic", "kind": "epic", "file": "epic.md",
+     "title": "Proposta: lista de capítulos virtualizada com altura variável", "labels": ["enhancement"]},
+    {"key": "T1", "kind": "task", "file": "t1.md", "parent": "epic",
+     "title": "VirtualList: suportar itens de altura variável", "labels": ["enhancement"]},
+    {"key": "T2", "kind": "task", "file": "t2.md", "parent": "epic",
+     "title": "ChapterList: renderizar só a janela visível", "labels": ["enhancement", "performance"],
+     "blocked_by": ["T1"]}
+  ]
+}
