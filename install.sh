@@ -14,6 +14,8 @@ CORE_SKILLS=(
   "find-docs"
   "github-actions"
   "github-repo-setup"
+  "resolve-issues"
+  "resolve-pull-requests"
   "technical-issues"
   "technical-report"
   "testing-strategy"
@@ -36,6 +38,8 @@ RESET="\033[0m"
 skill_deps() {
   case "$1" in
     technical-issues) echo "technical-report" ;;
+    resolve-issues) echo "technical-report" ;;
+    resolve-pull-requests) echo "technical-report resolve-issues" ;;
   esac
 }
 
@@ -53,7 +57,7 @@ Uso:
   curl -fsSL https://raw.githubusercontent.com/BGLuis/skills/main/install.sh | bash -s -- [OPÇÕES]
 
 Opções:
-  --all             Instala todas as 10 skills autorais @BGLuis (padrão)
+  --all             Instala todas as 13 skills autorais @BGLuis (padrão)
   --skill <nome>    Instala apenas uma skill específica
   --agent <nome>    Alvo específico: gemini, claude, copilot, cursor ou all (padrão: auto-detect)
   --copy            Copia arquivos em vez de criar links simbólicos (symlinks)
