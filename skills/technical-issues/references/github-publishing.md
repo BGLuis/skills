@@ -59,13 +59,13 @@ public since the drafts were written gets its triage again.
 ## 4. Publish with the script
 
 ```bash
-python3 <skill-directory>/scripts/publish_issues.py <drafts-dir> --dry-run   # the preview
-python3 <skill-directory>/scripts/publish_issues.py <drafts-dir>             # after the yes
+python3 <skill-directory>/scripts/publish_issues.py <drafts-dir> --repo . --dry-run   # the preview
+python3 <skill-directory>/scripts/publish_issues.py <drafts-dir> --repo .             # after the yes
 ```
 
 What it does, in order:
 
-1. Runs the validator and stops on any error. Checks `gh` ≥ 2.94.0 (`--parent`) and the live
+1. Runs the validator (with `--repo`, against the clone) and stops on any error. Checks `gh` ≥ 2.94.0 (`--parent`) and the live
    visibility.
 2. Creates each issue without a `number`, in manifest order, with `--label`, `--milestone`,
    `--parent`, `--type`, `--project`, and `--assignee` as the manifest says. It writes the new

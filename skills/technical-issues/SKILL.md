@@ -99,6 +99,10 @@ Each sub-issue must be closable on its own by one person in one Pull Request. If
 it; if two sub-issues always ship together, merge them. When one must land before another, record
 it in `blocked_by` and mirror it under Depends on.
 
+A task whose feasibility nothing proves — no precedent in the code, no source of the installed
+version, no probe someone can repeat — is not estimated as work: file the question as a spike
+(`"spike": true`) and make the task wait for it (`references/issue-anatomy.md`, Feasibility).
+
 ## 7. Write and validate the drafts
 
 Write the drafts in a temporary directory **outside the repository** (never commit them): one
@@ -108,12 +112,18 @@ format of `references/issue-anatomy.md`.
 Run the validator that ships with this skill (path relative to the skill directory):
 
 ```bash
-python3 <skill-directory>/scripts/validate_issues.py <drafts-dir>
+python3 <skill-directory>/scripts/validate_issues.py <drafts-dir> --repo <repository-root>
 ```
 
-Fix every error and run it again until it exits clean; read the warnings and fix the ones that
-apply. Without Python, check the same rules by hand from `references/issue-anatomy.md` and say so
-to the user.
+`--repo` opens every `file:line` and permalink at its base commit, so a moved or invented line is
+caught here. Fix every error and run it again until it exits clean; read the warnings and fix the
+ones that apply. Without Python, check the same rules by hand from `references/issue-anatomy.md`
+and say so to the user.
+
+Then review what the validator cannot judge, issue by issue (`references/issue-anatomy.md`,
+Acceptance criteria, rules 4 and 5): every step of the fix, implementation, or scope is closed by
+a criterion, and a destructive or one-way change has a negative criterion. Fix the drafts before
+the preview; do not leave the gap for whoever picks the issue up.
 
 Full examples of the expected drafts, in `examples/`:
 
@@ -132,16 +142,17 @@ yes.
 ## 9. Preview and confirm
 
 Creating issues is visible to everyone watching the repository and cannot be fully undone. Run
-`publish_issues.py <drafts-dir> --dry-run` and show the user, in one message: the target repository
-and its visibility, each title with its labels, milestone, parent, and blockers, the probable
-duplicates skipped, the labels to be created, the security findings routed elsewhere, and the
-manual steps the profile lists in `post_create`. **Create nothing until the user confirms.** If the
-user edits the list, update the drafts and validate again.
+`publish_issues.py <drafts-dir> --repo <repository-root> --dry-run` and show the user, in one
+message: the target repository and its visibility, each title with its labels, milestone, parent,
+and blockers, the probable duplicates skipped, the labels to be created, the security findings
+routed elsewhere, the spikes and the tasks waiting for them, the open questions of each issue, and
+the manual steps the profile lists in `post_create`. **Create nothing until the user confirms.** If
+the user edits the list, update the drafts and validate again.
 
 ## 10. Publish
 
 ```bash
-python3 <skill-directory>/scripts/publish_issues.py <drafts-dir>
+python3 <skill-directory>/scripts/publish_issues.py <drafts-dir> --repo <repository-root>
 ```
 
 It creates the issues in manifest order, writes each number into `manifest.json` as soon as it

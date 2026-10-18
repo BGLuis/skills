@@ -7,6 +7,7 @@ to ignore the validator. The shipped examples must stay clean.
 """
 
 import json
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -19,7 +20,11 @@ import validate_issues  # noqa: E402
 
 EXAMPLES = HERE.parent.parent / "examples"
 
-TASK = """**Evidence:** `src/list.ts:10-20` · **Base commit:** `abc1234`
+TASK = """**Goal:** the list scrolls without rendering the rows off screen.
+
+**Evidence:** `src/list.ts:10-20` · **Base commit:** `abc1234`
+
+**Feasibility:** `src/hook.ts:4-30` already windows a fixed-height list.
 
 **Implementation:** reuse the window hook.
 **Acceptance criteria:** `npm test -- list` passes.
@@ -27,12 +32,30 @@ TASK = """**Evidence:** `src/list.ts:10-20` · **Base commit:** `abc1234`
 **Not verified:** nothing ran on a device.
 """
 
-FINDING = """**Evidence:** `src/export.ts:22-40` · **Base commit:** `abc1234`
+PT_TASK = """**Objetivo:** a lista rola sem renderizar as linhas fora da tela.
+
+**Evidência:** `src/list.ts:10-20` · **Commit base:** `abc1234`
+
+**Viabilidade:** `src/hook.ts:4-30` já faz a janela com altura fixa.
+
+**Implementação:** reutilizar o hook de janela.
+**Critério de aceite:** `npm test -- lista` passa.
+
+**Não verificado:** nada rodou em aparelho.
+"""
+
+FINDING = """**Goal:** two exports fit in the container at once.
+
+**Evidence:** `src/export.ts:22-40` · **Base commit:** `abc1234`
+
+**Baseline:** peak RSS 1.1 GB median, n = 10.
 
 **Reproduction:** export a month and watch `VmHWM`.
 
 **Fix:** stream the rows.
-**Acceptance criteria:** peak RSS ≤ 100 MB.
+**Acceptance criteria:** peak RSS ≤ 100 MB on the same reproduction (`VmHWM`).
+
+**Not verified:** nothing beyond the epic.
 """
 
 EPIC = """**Base commit:** `abc1234`
@@ -47,7 +70,7 @@ EPIC = """**Base commit:** `abc1234`
 """
 
 
-def run(issues, bodies, profile=None, **top):
+def run(issues, bodies, profile=None, repo=None, **top):
     with tempfile.TemporaryDirectory() as tmp:
         d = Path(tmp)
         manifest = {"repo": "o/r", "language": "en", "mode": "audit",
@@ -58,7 +81,7 @@ def run(issues, bodies, profile=None, **top):
         (d / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
         for name, text in bodies.items():
             (d / name).write_text(text, encoding="utf-8")
-        errors, warnings = validate_issues.validate(d)
+        errors, warnings = validate_issues.validate(d, repo)
         return "\n".join(errors), "\n".join(warnings)
 
 
@@ -152,11 +175,168 @@ class ShapeTest(unittest.TestCase):
         _, warnings = run(*task(title="List: " + "x" * 80))
         self.assertIn("board card shows about 80", warnings)
 
-    def test_vague_acceptance_criterion_warns(self):
-        body = TASK.replace("`npm test -- list` passes.", "it is faster.")
-        errors, warnings = run(*task(body))
-        self.assertEqual(errors, "")
-        self.assertIn("names no command, number, or source", warnings)
+
+
+def criterion(text, extra=""):
+    return errors_of(TASK.replace("`npm test -- list` passes.", text) + extra)
+
+
+class CriteriaTest(unittest.TestCase):
+    """A criterion that cannot fail, or that nobody knows how to check, closes nothing."""
+
+    def test_criterion_must_name_its_check(self):
+        self.assertIn("names no check", criterion("the rows render."))
+        self.assertIn("names no check", criterion("2 rows render."))
+        self.assertEqual(criterion("the rows render (`npm test -- list`)."), "")
+        self.assertEqual(criterion("the rows follow the spec [F1].",
+                                   "\n| # | Source |\n|---|---|\n| F1 | spec |\n"), "")
+
+    def test_each_checklist_item_is_a_criterion(self):
+        errors = criterion("\n- [ ] `npm test` passes\n- [ ] the list feels smooth")
+        self.assertIn("'the list feels smooth' names no check", errors)
+        self.assertNotIn("'`npm test` passes'", errors)
+
+    def test_vague_term_needs_a_threshold(self):
+        self.assertIn("rests on 'faster'", criterion("scrolling is faster (`npm run bench`)."))
+        self.assertIn("rests on 'as expected'", criterion("`npm test` behaves as expected."))
+        self.assertEqual(criterion("a frame takes ≤ 16 ms, faster than today (`npm run bench`).",
+                                   "\n**Baseline:** 41 ms median, n = 10.\n"), "")
+
+    def test_vague_term_in_portuguese(self):
+        body = PT_TASK.replace("`npm test -- lista` passa.",
+                               "a rolagem fica mais rápida (`npm run bench`).")
+        self.assertIn("rests on 'mais rápida'", run(*task(body), language="pt-BR")[0])
+        self.assertEqual(run(*task(PT_TASK), language="pt-BR")[0], "")
+
+    def test_threshold_needs_a_baseline(self):
+        text = "`npm run bench` shows at most 16 ms per frame."
+        self.assertIn("needs **Baseline:**", criterion(text))
+        self.assertEqual(criterion(text, "\n**Baseline:** 41 ms median, n = 10.\n"), "")
+        self.assertEqual(criterion(text, "\n**Baseline:** [modeled] from the node count.\n"), "")
+        self.assertIn("needs **Baseline:**", criterion(text, "\n**Baseline:** slow today.\n"))
+
+    def test_numbers_inside_code_are_not_thresholds(self):
+        self.assertEqual(criterion('`parse("x < 5")` returns an error.'), "")
+
+
+class FeasibilityTest(unittest.TestCase):
+    """A task with no proof that it can be built is a guess that gets estimated as work."""
+
+    def feasibility(self, text, extra=""):
+        return errors_of(TASK.replace("`src/hook.ts:4-30` already windows a fixed-height list.",
+                                      text) + extra)
+
+    def test_task_needs_feasibility_unless_it_is_the_spike(self):
+        body = TASK.replace("**Feasibility:** `src/hook.ts:4-30` already windows a fixed-height "
+                            "list.\n\n", "")
+        self.assertIn("task without the **Feasibility:**", errors_of(body))
+        self.assertEqual(errors_of(body, spike=True), "")
+
+    def test_feasibility_needs_a_proof(self):
+        self.assertIn("names no proof", self.feasibility("it should be possible."))
+        self.assertIn("names no proof", self.feasibility("use `ResizeObserver`."))
+        self.assertEqual(self.feasibility("a probe: https://gist.github.com/o/1a2b."), "")
+        self.assertEqual(self.feasibility("the API supports it [F1].",
+                                          "\n| # | Source |\n|---|---|\n| F1 | docs |\n"), "")
+        self.assertEqual(self.feasibility("a probe against turso 0.8.1:\n\n```sh\n$ cargo run\n"
+                                          "FOREIGN KEY constraint failed\n```"), "")
+
+    def test_feasibility_resting_on_a_spike_waits_for_it(self):
+        issues = [{"key": "S1", "kind": "task", "file": "s1.md", "title": "A: probe",
+                   "spike": True},
+                  {"key": "T2", "kind": "task", "file": "t2.md", "title": "A: build"}]
+        t2 = TASK.replace("`src/hook.ts:4-30` already windows a fixed-height list.",
+                          "answered by S1.")
+        self.assertIn("rests on 'S1', which is not in `blocked_by`",
+                      run(issues, {"s1.md": TASK, "t2.md": t2})[0])
+        issues[1]["blocked_by"] = ["S1"]
+        t2 = t2.replace("\n\n**Implementation:**", "\n\n**Depends on:** S1\n\n**Implementation:**")
+        self.assertEqual(run(issues, {"s1.md": TASK, "t2.md": t2})[0], "")
+
+    def test_only_a_task_can_be_a_spike(self):
+        issues = [{"key": "P-01", "kind": "finding", "file": "p.md", "title": "A: x",
+                   "spike": True}]
+        self.assertIn("only a task can be a spike", run(issues, {"p.md": FINDING})[0])
+
+
+class StandaloneTest(unittest.TestCase):
+    """An issue is read alone: in a notification, on a board card, months later."""
+
+    def test_goal_is_a_field_or_a_heading(self):
+        no_goal = TASK.replace("**Goal:** the list scrolls without rendering the rows off "
+                               "screen.\n\n", "")
+        self.assertIn("task without the **Goal:**", errors_of(no_goal))
+        self.assertEqual(errors_of("## Goal\n\nWindowed list.\n\n" + no_goal), "")
+
+    def test_sub_issue_states_what_was_not_verified(self):
+        issues = [{"key": "epic", "kind": "epic", "file": "e.md", "title": "Audit: export"},
+                  {"key": "P-01", "kind": "finding", "file": "p.md", "parent": "epic",
+                   "title": "Export: stream the rows"}]
+        bare = FINDING.replace("\n**Not verified:** nothing beyond the epic.\n", "")
+        self.assertIn("finding without the **Not verified:**",
+                      run(issues, {"e.md": EPIC, "p.md": bare})[0])
+
+    def test_open_questions_are_an_unchecked_checklist(self):
+        self.assertIn("is an unchecked `- [ ]` question",
+                      errors_of(TASK + "\n### Open questions\n\n- **Keys.** Which ones?\n"))
+        self.assertIn("lists no question", errors_of(TASK + "\n### Open questions\n\nNone.\n"))
+        self.assertEqual(errors_of(TASK + "\n### Open questions\n\n- [ ] **Keys.** Which?\n"
+                                   "  - for example Ctrl+Tab\n"), "")
+
+
+def git(root, *args):
+    subprocess.run(["git", "-C", str(root), "-c", "user.name=t", "-c", "user.email=t@t", *args],
+                   check=True, capture_output=True)
+
+
+class GitTest(unittest.TestCase):
+    """With --repo, a location that does not exist at the base commit is caught before
+    anyone opens the issue and finds nothing there."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        cls.root = Path(cls.tmp.name)
+        git(cls.root, "init", "-q")
+        (cls.root / "src").mkdir()
+        (cls.root / "src" / "list.ts").write_text("".join(f"line {i}\n" for i in range(25)))
+        (cls.root / "src" / "hook.ts").write_text("".join(f"line {i}\n" for i in range(30)))
+        git(cls.root, "add", ".")
+        git(cls.root, "commit", "-q", "-m", "init")
+        cls.sha = subprocess.run(["git", "-C", str(cls.root), "rev-parse", "HEAD"], check=True,
+                                 capture_output=True, text=True).stdout.strip()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def check(self, body):
+        return run(*task(body.replace("abc1234", self.sha[:9])), repo=self.root)[0]
+
+    def test_location_inside_the_file_is_clean(self):
+        self.assertEqual(self.check(TASK), "")
+
+    def test_line_past_the_end_is_rejected(self):
+        self.assertIn("line 40 is past the end of `src/list.ts` (25 lines",
+                      self.check(TASK.replace("src/list.ts:10-20", "src/list.ts:10-40")))
+
+    def test_missing_file_is_rejected(self):
+        self.assertIn("`src/gone.ts` does not exist",
+                      self.check(TASK.replace("src/list.ts:10-20", "src/gone.ts:3")))
+
+    def test_unknown_base_commit_is_rejected(self):
+        body = TASK.replace("`abc1234`", "`deadbee`")
+        self.assertIn("commit `deadbee` is not in", run(*task(body), repo=self.root)[0])
+
+    def test_permalink_of_this_repository_is_checked_and_others_are_not(self):
+        link = f"https://github.com/o/r/blob/{self.sha}/src/list.ts#L10-L90"
+        self.assertIn("line 90 is past the end",
+                      self.check(TASK.replace("`src/list.ts:10-20`", link)))
+        other = link.replace("/o/r/", "/x/y/")
+        self.assertEqual(self.check(TASK.replace("`src/list.ts:10-20`", other)), "")
+
+    def test_without_repo_nothing_is_read_from_git(self):
+        self.assertEqual(errors_of(TASK.replace("src/list.ts:10-20", "src/gone.ts:3")), "")
 
 
 class HierarchyTest(unittest.TestCase):

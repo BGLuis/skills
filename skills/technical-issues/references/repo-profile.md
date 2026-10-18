@@ -91,6 +91,9 @@ Put the skill's labels inside the matching sections: evidence, mechanism, and re
 the context or description heading; fix and acceptance criteria under scope or the steps to fix;
 dependencies under a `Depends on` heading (`Depende de` in pt-BR) or, when the form names that
 section differently, in a `**Depends on:**` field inside it — the validator reads only those two.
+A `Goal` heading (`Objetivo`) stands for the `**Goal:**` field; feasibility, baseline, and open
+questions go under the context heading, and the form's Definition of Done keeps its own lines
+next to the skill's acceptance criteria.
 
 ## Example
 
