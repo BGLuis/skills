@@ -16,7 +16,8 @@ Phases, in order (references/github-publishing.md):
 5. read every issue back and compare title, labels, milestone, parent, and blockers
    with the manifest.
 
-Usage: python3 publish_issues.py DRAFTS_DIR [--dry-run] [--gh PATH]
+Usage: python3 publish_issues.py DRAFTS_DIR [--repo REPO_DIR] [--dry-run] [--gh PATH]
+--repo checks every `file:line` against that clone, as validate_issues.py does.
 --dry-run prints the plan and calls nothing. Exit code 1 on any failure or mismatch.
 """
 
@@ -276,12 +277,13 @@ class Publisher:
 def main(argv):
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("drafts")
+    parser.add_argument("--repo")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--gh", default="gh")
     args = parser.parse_args(argv[1:])
     drafts = Path(args.drafts)
 
-    errors, warnings = validate_issues.validate(drafts)
+    errors, warnings = validate_issues.validate(drafts, args.repo)
     for w in warnings:
         print(w, file=sys.stderr)
     if errors:

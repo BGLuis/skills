@@ -24,6 +24,9 @@ sections.
 - Epic body
 - Sub-issue body (finding)
 - Sub-issue body (task)
+- Acceptance criteria
+- Feasibility
+- Open questions
 - Labels per language
 - Repository issue templates
 
@@ -77,6 +80,8 @@ Per issue:
   applied at creation. A label, milestone, or type that does not exist makes `gh` fail, so check
   them in step 8.
 - `security`: `true` for a security finding; refused when `visibility` is `public`.
+- `spike`: `true` for a task whose job is to answer a feasibility question (see Feasibility). Only a
+  task can be a spike, and a spike needs no `**Feasibility:**` field.
 - `number`, `url`: written by `publish_issues.py`. Never fill them by hand.
 - The order of `issues` is the creation order: epic first, then the sub-issues in priority order.
 
@@ -113,6 +118,10 @@ sees). The validator checks both directions.
 - A permalink (`https://github.com/<owner>/<repo>/blob/<sha>/<path>#L31-L35`) renders as a code
   snippet in an issue of the same repository, so it can replace a pasted excerpt. Paste the code
   only when annotating it, and never paste secrets: the validator rejects tokens and keys.
+- With `--repo <repository-root>`, the validator opens every `file:line` in prose and every
+  permalink of the manifest's repository at its commit, and rejects a file that is not there or a
+  line past its end. A location in another repository goes as a permalink to that repository; it
+  is not checked.
 
 ## Epic body
 
@@ -152,6 +161,8 @@ not here.
 ## Sub-issue body (finding)
 
 ````markdown
+**Goal:** <what the user or the system gets once this is closed, in one sentence>
+
 **Evidence:** `src/api/export/handler.ts:22-40` · **Base commit:** `9f3e21a`
 
 ```ts
@@ -161,14 +172,17 @@ res.send(toCsv(rows.rows));                 // line 39 — ~95 MB string
 
 <mechanism: the technical why, not just the symptom>
 
+**Baseline:** peak RSS 1.12 GB median, n = 10 (protocol in the epic)  (when a criterion has a threshold)
+
 **Severity:** Critical · **Effort:** S · **Reach:** every export · **Depends on:** P-02
 
 **Reproduction:** <input, environment, steps, what to observe — or "found by reading the code, not triggered">
 
 **Fix:** <what to change, pointing to the internal precedent `file:line` or the source [F1]>
-**Acceptance criteria:** <falsifiable: a command, a test assertion, a trace observation>
+**Acceptance criteria:**
+- [ ] <condition, with its check in `code`: `npm test -- export.stream`, `VmHWM` ≤ 100 MB>
 
-**Not verified:** <optional here; mandatory when the issue has no parent in the manifest>
+**Not verified:** <what stayed `[modeled]` or did not run; "nothing beyond the epic" when the epic says it all>
 
 ### Sources
 | # | Source | Type | Version | Consulted on |
@@ -176,33 +190,90 @@ res.send(toCsv(rows.rows));                 // line 39 — ~95 MB string
 | F1 | [`pg-query-stream` — README](https://…) | Official doc | 4.7.0 | 2026-09-23 |
 ````
 
+- `**Goal:**` comes first, so the issue makes sense in a notification without its epic. In a
+  repository whose sections include a `Goal` heading (`Objetivo` in pt-BR), that heading counts.
 - `**Fix:**` and `**Acceptance criteria:**` on consecutive lines, as in the report.
-- The acceptance criterion may be a checklist when there is more than one condition — always
-  unchecked `- [ ]`; nothing in a new issue has been done. It names a command, a number, or a
-  source; the validator warns when it names none.
+- `**Not verified:**` is in every issue: whoever picks up a sub-issue does not read the epic first.
 - Citations `[Fn]` are numbered per issue, starting at F1, and every one is in that issue's table.
 - `**Severity:**`, `**Effort:**`, and `**Reach:**` stay out of the body when the profile says
   those live elsewhere (a Project field, a label).
 
 ## Sub-issue body (task)
 
-Same as a finding, with `**Implementation:**` in place of `**Reproduction:**` + `**Fix:**`:
+Same as a finding, with `**Feasibility:**` and `**Implementation:**` in place of
+`**Reproduction:**` + `**Fix:**`:
 
 ````markdown
+**Goal:** the chapter list opens and scrolls without rendering the 2,400 items off screen.
+
 **Evidence:** `src/reader/ChapterList.tsx:41-58` — renders all 2,400 `<li>` with no window. **Base commit:** `4c1d7e2`
 
-**Precedent:** `src/shared/virtual-list.tsx:12-88` — **reuse** the hook; **diverge** on height [F1].
+**Feasibility:** `src/shared/virtual-list.tsx:12-88` already windows a fixed-height list — **reuse** the window math; **diverge** on height, measured per item [F1].
 
 **Effort:** 0.5 d · **Depends on:** T1
 
 **Implementation:** <the steps, reusing the precedent; what not to do>
 **Acceptance criteria:**
-- [ ] 1-line and 3-line items do not overlap with `dynamicHeight` (`npm test`).
-- [ ] Restoring chapter 1,800 puts item 1,800 at the top [F1].
+- [ ] 1-line and 3-line items do not overlap with `dynamicHeight` (`npm test -- virtual-list`).
+- [ ] Restoring chapter 1,800 puts item 1,800 at the top, asserted on `scrollTop` (`npm test -- restore`).
+
+**Not verified:** <what stayed `[modeled]` or did not run>
 ````
 
-`**Implementation:**` and `**Acceptance criteria:**` on consecutive lines. A task's absence of code
-("nothing exists yet") is proven with the zero-result search in `**Evidence:**`.
+`**Goal:**` comes first, as in a finding. `**Implementation:**` and `**Acceptance criteria:**` on
+consecutive lines. A task's absence of code ("nothing exists yet") is proven with the zero-result
+search in `**Evidence:**`.
+
+## Acceptance criteria
+
+An issue is closed when its criteria hold, so each criterion is the test of the issue. The
+validator rejects a criterion that breaks the first three rules; the last two are yours to check
+before the preview.
+
+1. **Each criterion names its check** — the command, the test, the assertion, or the trace
+   observation, in `code`, or the source `[Fn]` it is checked against. A checklist item is one
+   criterion and names its own check; always unchecked `- [ ]`, since nothing in a new issue has
+   been done. ❌ "Restoring chapter 1,800 puts it at the top." ✅ "… asserted on `scrollTop`
+   (`npm test -- restore`)."
+2. **No vague term without a threshold.** *Faster*, *better*, *cleaner*, *improves*, *as expected*,
+   *properly* (pt-BR: *mais rápido*, *melhorar*, *corretamente*, *como esperado*…) say nothing
+   until a number says how much: ❌ "export is faster" ✅ "export takes ≤ 2 s median, n = 10".
+3. **Every threshold has a baseline.** A criterion with `≤`, `<`, `at most`, `no máximo`… needs a
+   `**Baseline:**` field with today's value — measured, with the protocol, or marked `[modeled]`
+   with the model. Without it, nobody knows whether the threshold is a 10× change or none.
+4. **Every item of the scope is covered.** Each `**Fix:**` or `**Implementation:**` step, and each
+   item of a `Scope` section, is closed by at least one criterion. A step with no criterion is
+   either not needed or not verifiable: cut it or write its criterion.
+5. **A destructive or one-way change has a negative criterion.** A migration that drops data, a
+   delete, a flag that changes a default: say what must still hold (the rows that survive, the
+   rollback that restores the previous state, the request that is still refused).
+
+## Feasibility
+
+A task estimated as work but resting on an untested assumption is a guess. Every task carries a
+`**Feasibility:**` field with the proof that it can be built as written, and the validator rejects
+the field when it names none of:
+
+- an **internal precedent**, `file:line`: the repository already does something like it;
+- a **source** `[Fn]` of the installed version: the library or platform supports it;
+- a **probe**: the throwaway experiment that tried it, as a link (a gist, a branch, a CL) or as its
+  commands and output in a code block. A probe "outside the repository" with neither cannot be
+  repeated by a reviewer, and does not count;
+- the **spike** that answers it: a task of the manifest with `"spike": true`, which must also be in
+  `blocked_by`, since the answer comes first.
+
+When none exists, the task is a spike: its goal is the question, its criterion is the answer (yes
+or no, with the number that decides it), and the work it unblocks is a separate task that waits
+for it. In mode B, the `**Fix:**` field plays this role: point it to the precedent or the source
+whenever one exists.
+
+## Open questions
+
+An open question is work that is not done yet. When the analysis leaves one, list it under
+`### Open questions` (`### Perguntas em aberto`) as an unchecked checklist, one question per item;
+the validator rejects prose or plain bullets there. The criteria never depend on an unanswered
+question: write the criterion once the answer is in the body. The preview lists the open
+questions, so the user decides whether the issue can be filed before they are answered.
 
 ## Labels per language
 
@@ -211,20 +282,25 @@ check by hand. Keep `LOCALES` in `scripts/validate_issues.py` in sync with this 
 
 | en | pt-BR |
 |---|---|
+| `**Goal:**` · `## Goal` **(v, finding and task)** | `**Objetivo:**` · `## Objetivo` |
 | `**Evidence:**` **(v)** | `**Evidência:**` |
 | `**Reproduction:**` **(v, finding)** | `**Reprodução:**` |
 | `**Fix:**` **(v, finding)** | `**Correção:**` |
 | `**Implementation:**` **(v, task)** | `**Implementação:**` |
+| `**Feasibility:**` **(v, task)** | `**Viabilidade:**` |
 | `**Acceptance criteria:**` **(v)** | `**Critério de aceite:**` |
+| `**Baseline:**` **(v, when a criterion has a threshold)** | `**Linha de base:**` |
 | `**Verdict:**` **(v, audit epic)** | `**Veredicto:**` |
-| `**Not verified:**` **(v, epic or issue with no manifest parent)** | `**Não verificado:**` |
+| `**Not verified:**` **(v)** | `**Não verificado:**` |
 | `**Base commit:**` **(v)** | `**Commit base:**` |
 | `**Depends on:**` · `## Depends on` **(v)** | `**Depende de:**` · `## Depende de` |
-| `**Severity:**` · `**Effort:**` · `**Reach:**` · `**Precedent:**` | `**Severidade:**` · `**Esforço:**` · `**Alcance:**` · `**Precedente:**` |
+| `**Severity:**` · `**Effort:**` · `**Reach:**` | `**Severidade:**` · `**Esforço:**` · `**Alcance:**` |
+| `### Open questions` **(v)** | `### Perguntas em aberto` |
 | `### Sources` · `### Risks` · `### Limits of this analysis` · `### Non-goals` | `### Fontes` · `### Riscos` · `### Limites desta análise` · `### Não-objetivos` |
 | `Audit:` · `Proposal:` (epic title) | `Auditoria:` · `Proposta:` |
 
-Severity, effort, and source-type vocabularies are the report's, from `locales.md`.
+Severity, effort, and source-type vocabularies are the report's, from `locales.md`. The vague
+terms and threshold words of each language are in `LOCALES` (`vague`, `threshold`).
 
 ## Repository issue templates
 

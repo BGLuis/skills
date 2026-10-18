@@ -13,6 +13,11 @@ manifest names one, the repository profile in references/repo-profile.md):
   the required labels per kind with the fix or implementation label directly followed
   by the acceptance criteria, every sub-issue listed in its epic, and `Depends on`
   mirroring `blocked_by`;
+- acceptance criteria: each one names its check (a command, test, or assertion in
+  code, or a source), no vague term without a threshold, and a baseline for every
+  threshold; a task's feasibility names its proof; open questions are a checklist;
+- with --repo: every `file:line` and permalink of this repository exists at the issue's
+  base commit, and its lines fall inside the file;
 - profile: title pattern, required labels, milestone and parent, section headings,
   required text, and forbidden fields.
 
@@ -20,13 +25,15 @@ Labels are localized; the manifest's `language` picks the set. For a language wi
 label table the structural checks still run and the label checks are skipped with a
 warning.
 
-Usage: python3 validate_issues.py DRAFTS_DIR
+Usage: python3 validate_issues.py DRAFTS_DIR [--repo REPO_DIR]
 Output: one `file:line: message` line per error, warnings on stderr; exit code 1 if
 there is any error.
 """
 
+import argparse
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -52,6 +59,19 @@ LOCALES = {
         "base_commit": "**Base commit:**",
         "depends_on": "**Depends on:**",
         "depends_section": "Depends on",
+        "goal": "**Goal:**",
+        "goal_section": "Goal",
+        "feasibility": "**Feasibility:**",
+        "baseline": "**Baseline:**",
+        "open_questions": "Open questions",
+        "modeled": "[modeled]",
+        "vague": re.compile(
+            r"(?i)\b(?:improve[sd]?|better|faster|cleaner|simpler|easier|more robust|"
+            r"optimi[sz]ed|user-friendly|maintainable|properly|as expected|"
+            r"works (?:fine|well|correctly))\b"),
+        "threshold": re.compile(
+            r"(?i)[≤≥<>]\s*~?\d|\b(?:at most|at least|no more than|fewer than|less than|"
+            r"more than)\s+~?\d"),
     },
     "pt-BR": {
         "evidence": "**Evidência:**",
@@ -64,12 +84,26 @@ LOCALES = {
         "base_commit": "**Commit base:**",
         "depends_on": "**Depende de:**",
         "depends_section": "Depende de",
+        "goal": "**Objetivo:**",
+        "goal_section": "Objetivo",
+        "feasibility": "**Viabilidade:**",
+        "baseline": "**Linha de base:**",
+        "open_questions": "Perguntas em aberto",
+        "modeled": "[modelado]",
+        "vague": re.compile(
+            r"(?i)\b(?:melhor(?:a|ar|ado|ada|ou|ia)?|mais (?:rápid[oa]|limp[oa]|simples|fácil|"
+            r"robust[oa])|otimizad[oa]|amigável|manutenível|corretamente|adequadamente|"
+            r"como esperado|funciona(?:r)? bem)(?!\w)"),
+        "threshold": re.compile(
+            r"(?i)[≤≥<>]\s*~?\d|(?<!\w)(?:no máximo|no mínimo|pelo menos|menos de|"
+            r"mais de)\s+~?\d"),
     },
 }
 REQUIRED = {
     "epic": ("not_verified",),
-    "finding": ("evidence", "reproduction", "fix", "acceptance"),
-    "task": ("evidence", "implementation", "acceptance"),
+    "finding": ("goal", "evidence", "reproduction", "fix", "acceptance", "not_verified"),
+    "task": ("goal", "evidence", "feasibility", "implementation", "acceptance",
+             "not_verified"),
 }
 
 # Keep in sync with the schema in references/repo-profile.md.
@@ -109,7 +143,12 @@ ISSUE_REF_RE = re.compile(r"^#\d+$")
 PARENT_REF_RE = re.compile(r"^(?:#\d+|https://github\.com/[^/\s]+/[^/\s]+/issues/\d+)$")
 KEYLIKE_RE = re.compile(
     r"(?<![\w#+-])[A-Z]{1,3}-?\d+(?:\.\d+)?(?:\+[A-Z]{1,3}-?\d+(?:\.\d+)?)*(?![\w+-])")
-FALSIFIABLE_RE = re.compile(r"[`\d≤≥<>=]|\[F\d+\]")
+CHECK_RE = re.compile(r"`[^`]+`|\[F\d+\]")
+CRITERION_ITEM_RE = re.compile(r"^[-*+] (?:\[ \] )?(.*)$")
+URL_RE = re.compile(r"https?://\S+")
+PERMALINK_PARTS_RE = re.compile(
+    r"https://github\.com/([^/\s]+/[^/\s]+)/blob/([0-9a-f]{7,40})/(\S+?)#L(\d+)(?:-L(\d+))?")
+SKIPPED_PATH_RE = re.compile(r"^(?:/|~|node_modules/)|[*<>{}]")
 HOST_SUFFIXES = {"com", "org", "net", "io", "dev", "app", "local", "internal", "localhost"}
 
 
@@ -301,6 +340,8 @@ def validate_body(path, issue, ctx, err, warn):
     for n in hard_wrapped(lines):
         err(path, n, "hard-wrapped paragraph: GitHub renders this newline as a line break; "
                      "keep each paragraph or list item on one line")
+    if ctx["git"]:
+        validate_locations(path, prose, text, ctx["git"], err)
 
     if kind == "epic":
         listed = listed_keys(prose)
@@ -320,9 +361,12 @@ def validate_body(path, issue, ctx, err, warn):
     required = list(REQUIRED[kind])
     if kind == "epic" and ctx["mode"] == "audit":
         required.append("verdict")
-    if kind != "epic" and issue.get("parent") not in ctx["epics"]:
-        required.append("not_verified")
+    if issue.get("spike"):
+        required.remove("feasibility")
+    goal_heading = re.compile(rf"^#{{2,3}} {re.escape(L['goal_section'])}\s*$")
     for key in required:
+        if key == "goal" and any(goal_heading.match(line) for _, line in prose):
+            continue
         if not any(line.startswith(L[key]) for _, line in prose):
             err(path, 1, f"{kind} without the {L[key]} field")
 
@@ -346,10 +390,11 @@ def validate_body(path, issue, ctx, err, warn):
                                  "with no blank line")
     acceptance = field_block(lines, L["acceptance"])
     if acceptance is not None:
-        criterion = acceptance[len(L["acceptance"]):]
-        if not FALSIFIABLE_RE.search(INLINE_CODE_RE.sub("`", criterion)):
-            warn(path, f"{L['acceptance']} names no command, number, or source; "
-                       "check that it can fail")
+        validate_criteria(path, lines, criteria(acceptance, L["acceptance"]), L, err)
+    feasibility = field_block(lines, L["feasibility"])
+    if feasibility is not None:
+        validate_feasibility(path, feasibility, issue, ctx["keys"], L, err)
+    validate_open_questions(path, lines, L, err)
 
     expected = set(issue.get("blocked_by") or [])
     refs = depends_refs(lines, L, ctx["keys"])
@@ -366,6 +411,136 @@ def validate_body(path, issue, ctx, err, warn):
             err(path, 1, f"'{ref}' is under Depends on but is not a key of the manifest")
     for ref in sorted(expected - refs):
         err(path, 1, f"blocked_by '{ref}' is not mirrored under Depends on")
+
+
+def criteria(block, label):
+    """The criteria of an acceptance field: the text on the label line and each list item."""
+    first, *rest = block[len(label):].split("\n")
+    items = [first.strip()] if first.strip() else []
+    for line in rest:
+        m = CRITERION_ITEM_RE.match(line.strip())
+        if m:
+            items.append(m.group(1))
+    return items
+
+
+def validate_criteria(path, lines, items, L, err):
+    n = next(i for i, line in enumerate(lines, 1) if line.startswith(L["acceptance"]))
+    if not items:
+        err(path, n, f"{L['acceptance']} is empty")
+    with_threshold = False
+    for item in items:
+        bare = INLINE_CODE_RE.sub("", item)
+        short = item if len(item) <= 60 else item[:57] + "…"
+        if not CHECK_RE.search(item):
+            err(path, n, f"criterion '{short}' names no check: a command, test, or assertion "
+                         "in `code`, or a source [Fn], so whoever closes it knows how to verify it")
+        has_threshold = bool(L["threshold"].search(bare))
+        with_threshold |= has_threshold
+        vague = L["vague"].search(bare)
+        if vague and not has_threshold:
+            err(path, n, f"criterion '{short}' rests on '{vague.group(0)}' with no threshold; "
+                         "say how much and measured how")
+    if with_threshold:
+        baseline = field_block(lines, L["baseline"])
+        body = baseline[len(L["baseline"]):] if baseline else ""
+        if not (re.search(r"\d", body) or L["modeled"] in body):
+            err(path, n, f"a threshold in the criteria needs {L['baseline']} with the value "
+                         f"today, measured with its protocol or marked {L['modeled']}")
+
+
+def validate_feasibility(path, block, issue, keys, L, err):
+    body = block[len(L["feasibility"]):]
+    bare = CITATION_RE.sub("", INLINE_CODE_RE.sub("", body))
+    pending = {k for k in keys - {issue["key"]}
+               if re.search(r"(?<![\w#+-])" + re.escape(k) + r"(?![\w+-])", bare)}
+    for key in sorted(pending - set(issue.get("blocked_by") or [])):
+        err(path, 1, f"{L['feasibility']} rests on '{key}', which is not in `blocked_by`; "
+                     "the proof has to land first")
+    proven = (pending or re.search(r"(?<![\w/])#\d+\b", bare) or CITATION_RE.search(body)
+              or URL_RE.search(body)
+              or any(FENCE_RE.match(line) for line in body.split("\n"))
+              or any(is_file_location(t) for t in CODE_TOKEN_RE.findall(body)))
+    if not proven:
+        err(path, 1, f"{L['feasibility']} names no proof: a precedent `file:line`, a source "
+                     "[Fn] of the installed version, a probe (its link, or its commands and "
+                     "output in a code block), or the spike that answers it")
+
+
+def validate_open_questions(path, lines, L, err):
+    section = section_block(lines, L["open_questions"])
+    if section is None:
+        return
+    items = [line for line in section if re.match(r"^[-*+] ", line)]
+    if not items:
+        err(path, 1, f"`{L['open_questions']}` lists no question")
+    if any(not re.match(r"^[-*+] \[ \] ", line) for line in items):
+        err(path, 1, f"each item of `{L['open_questions']}` is an unchecked `- [ ]` question: "
+                     "it is answered, and its answer written in the body, before the issue "
+                     "is ready")
+
+
+class GitRepo:
+    """Reads files at a commit of a local clone; every answer is cached."""
+
+    def __init__(self, root, name):
+        self.root, self.name = str(root), (name or "").lower()
+        self.commits, self.lines = {}, {}
+
+    def git(self, *args):
+        return subprocess.run(["git", "-C", self.root, *args], capture_output=True,
+                              timeout=30, check=False)
+
+    def has_commit(self, sha):
+        if sha not in self.commits:
+            self.commits[sha] = self.git("cat-file", "-e", f"{sha}^{{commit}}").returncode == 0
+        return self.commits[sha]
+
+    def line_count(self, sha, path):
+        """Number of lines of `path` at `sha`, or None when the file is not there."""
+        if (sha, path) not in self.lines:
+            out = self.git("show", f"{sha}:{path}")
+            data = out.stdout if out.returncode == 0 else None
+            self.lines[(sha, path)] = None if data is None else (
+                data.count(b"\n") + (0 if not data or data.endswith(b"\n") else 1))
+        return self.lines[(sha, path)]
+
+
+def base_commit(text):
+    for L in LOCALES.values():
+        m = re.search(re.escape(L["base_commit"]) + r"\s*`([0-9a-f]{7,40})`", text)
+        if m:
+            return m.group(1)
+    return None
+
+
+def validate_locations(path, prose, text, repo, err):
+    """Every `file:line` and same-repository permalink exists at its commit."""
+    refs = []
+    sha = base_commit(text)
+    for n, line in prose:
+        for m in PERMALINK_PARTS_RE.finditer(line):
+            if m.group(1).lower() == repo.name:
+                lines = [int(m.group(4))] + ([int(m.group(5))] if m.group(5) else [])
+                refs.append((n, m.group(0), m.group(2), m.group(3), lines))
+        for token in CODE_TOKEN_RE.findall(line):
+            if not is_file_location(token):
+                continue
+            file = LOCATION_RE.match(token).group("path")
+            if sha and not SKIPPED_PATH_RE.search(file):
+                numbers = [int(x) for x in re.findall(r"\d+", token[len(file) + 1:])]
+                refs.append((n, token, sha, file, numbers))
+    for n, token, commit, file, numbers in refs:
+        if not repo.has_commit(commit):
+            err(path, n, f"commit `{commit}` is not in {repo.root}; fetch it "
+                         "(`git fetch --unshallow`) or fix the base commit")
+            continue
+        count = repo.line_count(commit, file)
+        if count is None:
+            err(path, n, f"`{token}`: `{file}` does not exist at `{commit}`")
+        elif max(numbers) > count:
+            err(path, n, f"`{token}`: line {max(numbers)} is past the end of `{file}` "
+                         f"({count} lines at `{commit}`)")
 
 
 def validate_body_profile(path, issue, profile, text, prose, err):
@@ -457,8 +632,8 @@ def find_cycle(graph):
     return None
 
 
-def validate(drafts_dir):
-    """Returns (errors, warnings)."""
+def validate(drafts_dir, repo=None):
+    """Returns (errors, warnings). With `repo`, a local clone, locations are checked in git."""
     drafts = Path(drafts_dir)
     manifest_path = drafts / "manifest.json"
     errors, warnings = [], []
@@ -540,8 +715,11 @@ def validate(drafts_dir):
             if not isinstance(value, list) or not all(isinstance(x, str) for x in value):
                 err(manifest_path, 1, f"'{key}': `{field}` must be a list of strings")
                 issue[field] = []
-        if "security" in issue and not isinstance(issue["security"], bool):
-            err(manifest_path, 1, f"'{key}': `security` must be true or false")
+        for flag in ("security", "spike"):
+            if flag in issue and not isinstance(issue[flag], bool):
+                err(manifest_path, 1, f"'{key}': `{flag}` must be true or false")
+        if issue.get("spike") and issue.get("kind") != "task":
+            err(manifest_path, 1, f"'{key}': only a task can be a spike")
         if issue.get("security") and visibility == "public":
             err(manifest_path, 1, f"'{key}': a security finding is never filed as an issue on a "
                                   "public repository; route it through SECURITY.md")
@@ -591,18 +769,23 @@ def validate(drafts_dir):
 
     if errors:
         return errors, warnings
+    git = GitRepo(repo, manifest.get("repo")) if repo else None
     ctx = {"L": L, "profile": profile, "mode": mode, "epics": epics,
-           "children": children, "keys": set(seen)}
+           "children": children, "keys": set(seen), "git": git}
     for key, (_, issue) in seen.items():
         validate_body(drafts / issue["file"], issue, ctx, err, warn)
     return errors, warnings
 
 
 def main(argv):
-    if len(argv) != 2 or argv[1] in ("-h", "--help"):
-        print(__doc__.strip())
-        return 0 if len(argv) == 2 else 2
-    errors, warnings = validate(argv[1])
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("drafts")
+    parser.add_argument("--repo", help="local clone whose commits the locations refer to")
+    args = parser.parse_args(argv[1:])
+    if args.repo and not (Path(args.repo) / ".git").exists():
+        print(f"{args.repo} is not the root of a git repository", file=sys.stderr)
+        return 2
+    errors, warnings = validate(args.drafts, args.repo)
     for w in warnings:
         print(w, file=sys.stderr)
     for e in errors:
