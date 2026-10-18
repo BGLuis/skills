@@ -2,8 +2,14 @@ name: Release Skills
 
 on:
   push:
+    branches: [main]
     tags: ["v*.*.*"]
   workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish GitHub release (creates tag and release)"
+        type: boolean
+        default: true
 
 permissions: {}
 
@@ -43,8 +49,8 @@ jobs:
   release:
     name: Publish GitHub Release
     needs: package
-    if: github.ref_type == 'tag'
-    runs-on: ubuntu-slim
+    if: github.event_name == 'push' || inputs.publish != false
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       contents: write # create the release and upload assets
@@ -58,5 +64,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          TAG: ${{ github.ref_name }}
-        run: gh release create "$TAG" dist/* --verify-tag --generate-notes
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            TAG="${{ github.ref_name }}"
+            gh release create "$TAG" dist/* --verify-tag --generate-notes
+          else
+            BASE_TAG="v$(date -u +'%Y.%m.%d')"
+            TAG="$BASE_TAG"
+            COUNTER=1
+            while gh api "repos/${GH_REPO}/git/ref/tags/${TAG}" >/dev/null 2>&1; do
+              TAG="${BASE_TAG}.${COUNTER}"
+              COUNTER=$((COUNTER + 1))
+            done
+            gh release create "$TAG" dist/* --target "${{ github.sha }}" --title "$TAG" --generate-notes
+          fi
