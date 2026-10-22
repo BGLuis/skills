@@ -14,13 +14,16 @@ Offline (sempre):
     escolhido pelo usuário);
   - imagem relativa que não existe no repositório;
   - vírgula sem espaço dentro de srcset (corta a URL; use %2C);
-  - <picture> sem <img> de fallback, ou com mode=dark/light trocados.
+  - <picture> sem <img> de fallback, ou com mode=dark/light trocados;
+  - banner shieldcn (/header/) com subtitle acima de 60 caracteres ou com font=
+    (o texto vaza ou é cortado na borda; references/shieldcn.md).
 
 Online (--online):
   - badge shieldcn cujo .json devolve "error": true;
   - logo= inexistente (SVG idêntico ao mesmo badge com logo=false; em header,
     "hasLogo": false no .json);
-  - header ou contributors que não respondem 200.
+  - header ou contributors que não respondem 200;
+  - header cujo SVG tem texto truncado com "…".
 
 Uso: python3 validate_readme.py [--online] [--allow-host HOST ...] ARQUIVO [ARQUIVO ...]
 Saída: uma linha `arquivo:linha: mensagem` por erro; código 1 se houver erro.
@@ -35,6 +38,7 @@ import urllib.request
 from pathlib import Path
 
 SHIELDCN_HOST = "shieldcn.dev"
+SUBTITLE_MAX = 60
 
 FORBIDDEN_HOSTS = {
     "www.shieldcn.dev": "use shieldcn.dev, sem www (o www responde 308)",
@@ -200,6 +204,22 @@ def check_offline(path, lines, errors, allowed_hosts=()):
             err(number, f"imagem em host não permitido ({host}): badges só via shieldcn.dev; "
                         "imagens do projeto em caminho relativo ou anexo do GitHub")
 
+    reported = set()
+    for number, url in image_urls(lines):
+        parsed = urllib.parse.urlsplit(url)
+        if parsed.hostname != SHIELDCN_HOST or not parsed.path.startswith("/header/"):
+            continue
+        params = dict(urllib.parse.parse_qsl(parsed.query))
+        subtitle = params.get("subtitle", "")
+        if len(subtitle) > SUBTITLE_MAX and (number, "subtitle") not in reported:
+            reported.add((number, "subtitle"))
+            err(number, f"subtitle do banner tem {len(subtitle)} caracteres (máximo {SUBTITLE_MAX}): "
+                        "o texto vaza ou é cortado na borda")
+        if "font" in params and (number, "font") not in reported:
+            reported.add((number, "font"))
+            err(number, "banner com font=: o SVG não embute a fonte e a largura muda no GitHub; "
+                        "remova o parâmetro")
+
     text = "\n".join(lines)
     for match in PICTURE_RE.finditer(text):
         block = match.group(0)
@@ -262,6 +282,10 @@ def shieldcn_problem(parsed):
         failed = [i for i in items if isinstance(i, dict) and i.get("error")]
         if failed:
             return f"badge com erro no shieldcn ({failed[0].get('value') or failed[0].get('error')})"
+        if parsed.path.startswith("/header/"):
+            _, svg = fetch(urllib.parse.urlunsplit(parsed))
+            if "…".encode() in svg:
+                return "texto do banner truncado com '…' (título ou subtitle longo demais)"
         if logo and logo != "false":
             if parsed.path.startswith("/header/"):
                 if isinstance(data, dict) and data.get("hasLogo") is False:

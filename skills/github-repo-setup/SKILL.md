@@ -112,8 +112,10 @@ Leia `references/idiomas.md` e `references/shieldcn.md` antes de começar.
 9. **Licença:** cite o nome e linke o arquivo. Sem licença no repositório,
    pergunte se a seção fica ou sai.
 10. **Banner, por último:** depois de ler o projeto inteiro, escreva uma
-    descrição de uma linha e use-a como `subtitle` do banner (`{{TAGLINE_URL}}`,
-    com espaços como `+`). `{{PROJECT_TITLE}}` é o nome legível do projeto.
+    descrição de uma linha, **com no máximo 60 caracteres**, e use-a como
+    `subtitle` do banner (`{{TAGLINE_URL}}`, com espaços como `+`). Acima disso
+    o shieldcn quebra em duas linhas e trunca com `…`, e o texto pode vazar da
+    borda do banner. Não use o parâmetro `font`. `{{PROJECT_TITLE}}` é o nome legível do projeto.
     - **Logo próprio:** vai dentro do banner pela URL raw, se ela responder
       200 sem login. Senão (repositório privado, ou arquivo ainda não enviado),
       o banner sai sem logo e o logo aparece como imagem relativa logo abaixo

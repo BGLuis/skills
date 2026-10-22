@@ -64,12 +64,21 @@ Dentro de HTML, `&` pode ficar literal; o GitHub aceita as duas formas.
 ## Banner (header)
 
 ```text
-https://shieldcn.dev/header/graph.svg?title=Nome+Do+Projeto&subtitle=Descrição+de+uma+linha&align=left&font=geist-mono&mode=dark
+https://shieldcn.dev/header/graph.svg?title=Nome+Do+Projeto&subtitle=Descrição+de+uma+linha&align=left&mode=dark
 ```
 
 - Espaço vira `+` em `title` e `subtitle`; acentos podem ir literais ou em `%XX`.
   **Vírgula vira `%2C`:** dentro de `srcset`, uma vírgula solta separa imagens
   alternativas e corta a URL.
+- **Subtitle: no máximo 60 caracteres.** O shieldcn quebra o texto por número
+  de caracteres (cerca de 66 por linha, até 2 linhas, depois `…`), sem medir a
+  fonte. Uma linha cheia em fonte monoespaçada passa da largura útil do banner
+  (750 px) e é cortada na borda.
+- **Não use `font=`** (principalmente `geist-mono`). O SVG só referencia o nome
+  da fonte, sem embuti-la, e o GitHub renderiza SVG em `<img>`, sem fontes web:
+  cai em outra monoespaçada, com largura diferente. A fonte padrão é a mais
+  segura.
+- Títulos longos também quebram (2 linhas) e terminam em `…`: prefira nomes curtos.
 - Presets: `surface`, `gradient`, `dots`, `grid`, `graph`, `glow`, `transparent`.
   O template usa `graph`, como o README do próprio shieldcn.
 

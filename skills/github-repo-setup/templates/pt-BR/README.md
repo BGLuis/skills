@@ -1,6 +1,6 @@
-<!-- TEMPLATE: banner. Com logo próprio acessível via raw, acrescente &logo=<URL raw codificada> nas duas URLs; se não for acessível, deixe sem logo e acrescente o logo relativo logo abaixo. Se o usuário escolheu o banner do projeto ou outro, troque este bloco por ele. Ver references/shieldcn.md, "Logo do banner" e "Banner próprio do projeto". -->
+<!-- TEMPLATE: banner. Com logo próprio acessível via raw, acrescente &logo=<URL raw codificada> nas duas URLs; se não for acessível, deixe sem logo e acrescente o logo relativo logo abaixo. O subtitle (descrição de uma linha) tem no máximo 60 caracteres. Se o usuário escolheu o banner do projeto ou outro, troque este bloco por ele. Ver references/shieldcn.md, "Logo do banner" e "Banner próprio do projeto". -->
 <p align="center">
-  <picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/header/graph.svg?title={{PROJECT_TITLE_URL}}&subtitle={{TAGLINE_URL}}&align=left&font=geist-mono&mode=dark" /><img alt="{{PROJECT_TITLE}}" src="https://shieldcn.dev/header/graph.svg?title={{PROJECT_TITLE_URL}}&subtitle={{TAGLINE_URL}}&align=left&font=geist-mono&mode=light" /></picture>
+  <picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/header/graph.svg?title={{PROJECT_TITLE_URL}}&subtitle={{TAGLINE_URL}}&align=left&mode=dark" /><img alt="{{PROJECT_TITLE}}" src="https://shieldcn.dev/header/graph.svg?title={{PROJECT_TITLE_URL}}&subtitle={{TAGLINE_URL}}&align=left&mode=light" /></picture>
 </p>
 
 <!-- TEMPLATE: linha de troca de idioma. Só com dois idiomas; senão apague a linha. Ver references/idiomas.md -->
