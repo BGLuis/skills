@@ -123,6 +123,25 @@ class ReviewContextTest(Harness):
         self.assertIn("**maint** CHANGES_REQUESTED 2026-10-10: Please add a test.", out)
         self.assertIn("none: find what asked for this change", self.context())
 
+    def test_code_file_pushed_past_1000_lines_is_flagged_only_when_it_crosses(self):
+        def sized(name, added, deleted, status="modified"):
+            return dict(file(name, status=status), additions=added, deletions=deleted)
+
+        files = [sized("src/crosses.rs", 70, 10), sized("src/already_big.rs", 70, 10),
+                 sized("src/small.rs", 70, 10), sized("src/shrinks.rs", 5, 50),
+                 sized("src/new_big.rs", 1200, 0, "added"),
+                 sized("tests/new_big_test.rs", 1500, 0, "added"),
+                 sized("src/unreadable.rs", 70, 10)]
+        contents = {"src/crosses.rs": "x\n" * 1010, "src/already_big.rs": "x\n" * 1260,
+                    "src/small.rs": "x\n" * 560}
+        out = self.context(files=files, contents=contents)
+        self.assertIn("code files pushed past 1000 lines: `src/crosses.rs` (950 → 1010), "
+                      "`src/new_big.rs` (new, 1200) — ask whether to decompose first", out)
+        self.assertNotIn("already_big.rs` (", out)
+        self.assertNotIn("new_big_test.rs` (", out)
+        self.assertIn("could not count the lines of `src/unreadable.rs` at the head", out)
+        self.assertNotIn("`src/shrinks.rs` at the head", out)
+
 
 class DiffLinesTest(unittest.TestCase):
     def test_sides_follow_the_hunk_numbering(self):

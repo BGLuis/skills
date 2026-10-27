@@ -5,7 +5,8 @@ Prints the author and how much the repository trusts them, the issues it closes,
 checks, its size, every changed file marked when it runs code at build, test, or install
 time, which code changes have no test change next to them, and the reviews already left —
 then the flags: a closed or draft pull request, a size too large to review well, code
-from outside the repository that would run on a build, and files with no diff to read.
+from outside the repository that would run on a build, files with no diff to read, and
+code files the pull request pushes past 1000 lines.
 
 Usage: python3 review_context.py PR [-R OWNER/REPO] [--gh PATH]
 PR is a number, `#N`, or a pull request URL (whose repository wins over -R).
@@ -13,10 +14,12 @@ Output: Markdown on stdout. Exit code 1 when the pull request cannot be read.
 """
 
 import argparse
+import base64
 import json
 import re
 import subprocess
 import sys
+from urllib.parse import quote
 
 URL_RE = re.compile(r"^https://github\.com/([^/\s]+/[^/\s]+)/pull/(\d+)(?:/.*)?$")
 TRUSTED = {"OWNER", "MEMBER", "COLLABORATOR"}
@@ -36,6 +39,7 @@ TEST = re.compile(r"(^|/)(tests?|spec|__tests__|e2e)/|(_test|\.test|\.spec|_spec
                   r"(^|/)test_[^/]+\.py$")
 DOC = re.compile(r"\.(md|rst|txt|adoc)$|(^|/)docs?/")
 TOO_LARGE = 1000  # Google eng-practices, "Small CLs": 1000 lines is usually too large
+LARGE_FILE = 1000  # a file crossing this is asked to be decomposed first, not grown further
 
 
 class GhError(Exception):
@@ -71,7 +75,40 @@ def kind_of(name):
     return "code"
 
 
-def render(pr, files, view, reviews, viewer):
+def may_cross(f):
+    """A modified code file that grew: only its size at the head can tell if it crossed."""
+    return (kind_of(f["filename"]) == "code"
+            and f.get("status") in ("modified", "renamed", "changed")
+            and f.get("additions", 0) > f.get("deletions", 0))
+
+
+def lines_at(exe, repo, path, sha):
+    """The file's line count at `sha`, or None when the API cannot give its content."""
+    try:
+        item = gh(exe, "api", f"repos/{repo}/contents/{quote(path)}?ref={sha}")
+    except GhError:
+        return None
+    if item.get("encoding") != "base64":  # files over 1 MB come back without content
+        return None
+    text = base64.b64decode(item["content"]).decode("utf-8", "replace")
+    return text.count("\n") + (0 if text.endswith("\n") or not text else 1)
+
+
+def crossed(files, head_lines):
+    """Code files below LARGE_FILE lines at the base and above it at the head."""
+    out = []
+    for f in files:
+        name, added, deleted = f["filename"], f.get("additions", 0), f.get("deletions", 0)
+        if kind_of(name) == "code" and f.get("status") == "added" and added > LARGE_FILE:
+            out.append(f"`{name}` (new, {added})")
+        elif head_lines.get(name):
+            before = head_lines[name] - added + deleted
+            if before <= LARGE_FILE < head_lines[name]:
+                out.append(f"`{name}` ({before} → {head_lines[name]})")
+    return out
+
+
+def render(pr, files, view, reviews, viewer, head_lines):
     out, flags = [], []
     author = pr["user"]["login"]
     association = pr.get("author_association", "NONE")
@@ -138,6 +175,14 @@ def render(pr, files, view, reviews, viewer):
     code = [n for n, k in kinds.items() if k == "code"]
     if code and not any(k == "test" for k in kinds.values()):
         flags.append("code changes with no test change: ask how the change is verified")
+    grown = crossed(files, head_lines)
+    if grown:
+        flags.append(f"code files pushed past {LARGE_FILE} lines: " + ", ".join(grown)
+                     + " — ask whether to decompose first, unless the size has a structural reason")
+    uncounted = [n for n, count in head_lines.items() if count is None]
+    if uncounted:
+        flags.append("could not count the lines of " + ", ".join(f"`{n}`" for n in uncounted)
+                     + f" at the head: check in the checkout whether they pass {LARGE_FILE}")
 
     out += ["", f"## Reviews already left ({len(reviews)})", ""]
     for r in reviews:
@@ -175,10 +220,12 @@ def main(argv):
         reviews = [r for page in gh(args.gh, "api", f"repos/{repo}/pulls/{number}/reviews",
                                     "--paginate", "--slurp") for r in page]
         viewer = gh(args.gh, "api", "user").get("login")
+        head_lines = {f["filename"]: lines_at(args.gh, repo, f["filename"], pr["head"]["sha"])
+                      for f in files if may_cross(f)}
     except (ValueError, GhError, KeyError, json.JSONDecodeError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
-    print(render(pr, files, view, reviews, viewer), end="")
+    print(render(pr, files, view, reviews, viewer, head_lines), end="")
     return 0
 
 

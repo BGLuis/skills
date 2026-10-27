@@ -8,6 +8,7 @@ with the evidence that answers it.
 
 - Fit with the project
 - Purpose and design
+- Structure and complexity
 - Correctness
 - The claims
 - Tests
@@ -39,6 +40,35 @@ project" means, and it is the first thing the user asked for.
 - Do the pieces belong where they are? Would the next feature in this area fit, or fight it?
 - Is it more complex than the problem: an abstraction with one user, a configuration nobody needs,
   generality "for later"?
+
+## Structure and complexity
+
+Code that works can still leave the code around it harder to change. Ask of each meaningful
+change whether it deletes complexity or only moves it. A simpler design is a `suggestion
+(non-blocking)` unless you can show it — the busier flow, the duplicated helper at `file:line`,
+a sketch of the version with fewer branches — and an `issue` only when the change demonstrably
+makes an existing flow harder to follow. A restructuring larger than the pull request is the
+project's debt, not the author's: offer it as a follow-up issue.
+
+- **A reframing that deletes work.** Could the change extend an existing abstraction, reshape the
+  state, or move an ownership boundary so that whole branches, flags, or helper layers disappear?
+  A refactor that moves code but leaves the reader holding as many concepts did not simplify it.
+- **Special cases bolted on.** New conditionals, one-off booleans, or nullable modes inserted into
+  a flow that was about something else; the same check repeated in several places (a missing
+  model or helper); feature logic leaking into shared code; an edge case handled in the middle of
+  an already busy function. "Temporary" branches tend to stay.
+- **Indirection that does not pay.** A wrapper that only forwards its arguments, a generic
+  mechanism that hides a simple data shape.
+- **Loose contracts.** `any`, `unknown`, casts, optional parameters, or a silent fallback that
+  papers over an invariant the types or the boundary could state.
+- **Orchestration.** Independent steps run one after another for no reason; related updates that
+  leave state half-applied when one of them fails.
+- **File size.** A code file this pull request pushes past 1000 lines (`review_context.py` flags
+  it): a `question` asking whether to split it first. The size stands when the file stays clearly
+  organized for a structural reason.
+
+A few high-conviction structural comments are worth more than a list of renames; when the
+structure is the problem, a rename does not fix it.
 
 ## Correctness
 

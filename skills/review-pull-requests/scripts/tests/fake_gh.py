@@ -2,9 +2,11 @@
 FAKE_GH_FIXTURE and records every POST payload in it under `posted`.
 """
 
+import base64
 import json
 import os
 import sys
+from urllib.parse import unquote
 
 
 def main(args):
@@ -36,6 +38,11 @@ def answer(fixture, args):
     if args[0] != "api":
         return None
     endpoint = args[1]
+    if "/contents/" in endpoint:
+        path = unquote(endpoint.split("/contents/", 1)[1].split("?", 1)[0])
+        text = fixture.get("contents", {}).get(path)
+        return None if text is None else {
+            "encoding": "base64", "content": base64.b64encode(text.encode()).decode()}
     if endpoint.endswith("/files"):
         return [fixture.get("files", [])]
     if endpoint.endswith("/reviews"):

@@ -72,7 +72,9 @@ Read the whole diff, every line a person wrote, in the context of the full files
 1. **Fit:** the architecture, the layering, the conventions and ADRs of step 1 — each rule checked
    against the lines it governs.
 2. **Purpose and design:** it does what its issue asks, the pieces belong where they are, and it is
-   no more complex than the problem.
+   no more complex than the problem — no special case bolted onto an unrelated flow, no wrapper
+   that only forwards, no file pushed past 1000 lines without a reason, no simpler reframing left
+   on the table.
 3. **Correctness:** edge cases, errors, concurrency, resource limits, compatibility of anything
    public.
 4. **The claims:** every guarantee the description, a doc comment, or an ADR makes ("cannot be
