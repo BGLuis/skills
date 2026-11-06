@@ -62,6 +62,10 @@ Fit the depth to the scope: a report on one section stays around 120–160 lines
 feature or a large request, around 240–320. Go past 400 only when there is an exhaustive
 inventory to present.
 
+When a flow, a sequence of calls, a state machine, or the connections between pieces read more
+clearly as a graph than as prose, draw it with the technical-diagrams skill: a Mermaid block whose
+nodes are anchored to `file:line` like every other claim in the report.
+
 ## 4. Name and save
 
 Save in `docs/reports/` with a name in **UPPERCASE kebab-case, ASCII only (no accents or

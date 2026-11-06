@@ -19,6 +19,8 @@ text — not into the limits section.
 - [ ] Does every claim about code have `file:line`, and were those lines opened in this session?
 - [ ] Does every absence have the zero-result search with the command?
 - [ ] Is every number measured (with origin) or marked `[modeled]`?
+- [ ] Does every Mermaid diagram pass the technical-diagrams validator with `--repo-root` and
+      `--render`, and are its `inferred` nodes listed as not verified?
 - [ ] Does every performance number declare environment, tool, n, statistic, and limiting
       resource (`performance-measurement.md`)?
 - [ ] Were before and after measured with the same protocol?
