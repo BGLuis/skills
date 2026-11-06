@@ -45,12 +45,22 @@ quoting, and highlighting. Every figure has:
   %% @<nodeId>: path/to/module/                a directory
   %% @<nodeId>: path/to/file.py#ClassName      a symbol (ARCHITECTURE.md: lines rot)
   %% @<nodeId>: a.ts:10 + b.ts:4-9             several places
-  %% @<nodeId>: external                       outside the repository
+  %% @<nodeId>: external                       nothing in the repository touches it
   %% @<nodeId>: inferred                       not confirmed in the code
   ```
 
+  The id is the one the edges use: in a sequence diagram, the participant's id, not its alias
+  (`participant api as Auth API` → `%% @api:`). An external system the repository talks to through
+  its own adapter is anchored to that adapter (`%% @stripe: src/payments/stripe_client.py`);
+  `external` is for what no code in the repository reaches directly — a person, a CI service.
+  A symbol must be a definition: in Python a `def`, `class`, or module-level name
+  (`Class.method` for a method), in shell a function or variable, elsewhere the name as a whole
+  word. An import or a mention in a comment does not count.
+
 - a size within budget: aim for at most 9 nodes and 12 edges. Above that, draw an overview and a
-  detail figure instead of one dense one. The validator fails above 12 nodes or 16 edges.
+  detail figure instead of one dense one. The validator fails above 12 nodes or 16 edges. Nodes
+  and edges are the participants and messages of a sequence, the states and transitions of a state
+  machine, the entities and relationships of an ER diagram.
 
 Edges carry the event or condition in the domain's language ("payment confirmed"), not a
 function name. Error paths are drawn where behavior differs. Labels use the names the code and
@@ -65,23 +75,32 @@ repository root, with the render check:
 python3 <skill-directory>/scripts/validate_diagrams.py --repo-root . --render <FILE>.md
 ```
 
-It checks the anchors against the code (path exists, lines inside the file, symbol present), the
+It checks the anchors against the code (path exists, lines inside the file, symbol defined), the
 budget, the type, the syntax rules, and renders each block to SVG with `mmdc` or the
-`minlag/mermaid-cli` Docker image. Without either installed, pass a command with
-`--mmdc "npx -y @mermaid-js/mermaid-cli"` (it needs a Chrome or Chromium; point
-`PUPPETEER_EXECUTABLE_PATH` at a local one). Fix every error and run it again until it exits
+`minlag/mermaid-cli` Docker image (about 2 GB to download the first time). Without either
+installed, pass a command with `--mmdc "npx -y @mermaid-js/mermaid-cli"`; it needs a Chrome or
+Chromium — point `PUPPETEER_EXECUTABLE_PATH` at a local one. If Chromium then fails with a sandbox
+error (common inside containers and CI), write `{"args": ["--no-sandbox"]}` to a scratch JSON file
+and add `-p <that file>` to the `--mmdc` command. Fix every error and run it again until it exits
 clean. A diagram never goes into the document before it passes.
 
 If the render reports `skipped`, the syntax is **not verified** — say so to the user, never call
-it validated. With `--keep-svg <dir>`, look at the SVGs: an arrow crossing the whole figure or a
-cramped cluster means the layout needs a different direction or a split.
+it validated.
+
+**Look at the render before handing it off.** Add `--png <scratch-dir>`; each figure is saved as
+`<file stem>-<line>.png`, the line of the block's first line. Open every PNG. Passing the budget
+does not make a figure readable: redraw it when an arrow crosses the whole figure, when one node
+sits far from the others it connects to, when the figure is so wide that its text shrinks below
+the paragraph's, or when several arrows leave the same point and merge. Try the other direction
+(`LR` ↔ `TD`) first, then move the far node into the subgraph it talks to, then split.
 
 ## 5. Insert and keep it in step
 
 Put the ```` ```mermaid ```` block in the document, directly after the sentence that tells the
 reader what to look at. The figure and the prose share one home per fact: the prose does not
 narrate the figure step by step. When a change alters a drawn flow, the figure changes in the same
-commit; a stale anchor fails the validator.
+commit; a stale anchor fails the validator. Run the validator again after any later edit to the
+document, prose included — the last run is the one that counts.
 
 ## 6. Report to the user
 

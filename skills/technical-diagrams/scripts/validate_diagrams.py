@@ -9,23 +9,31 @@ For every ```mermaid block outside other code blocks:
   An anchor is `external`, `inferred`, or locations joined by ` + `, each
   `path`, `path:12`, `path:12-30`, `path:12,40-44`, or `path#symbol`;
 - with --repo-root, each location exists under that root: the path, the lines
-  within the file's length, the symbol as text in the file;
+  within the file's length, and the symbol as a definition — in Python a
+  `def`, `class`, or module-level assignment (`Class.method` for a method), in
+  shell a function or variable assignment, in any other file the name as a
+  whole word;
 - the diagram stays within the size budget (warning above the target, error
   above the maximum) — a bigger one is two diagrams;
 - no `end`/`graph`/`subgraph` as an id, no literal `\\n`, no HTML other than
-  <br>, no emoji, no unquoted label holding brackets or parentheses.
+  <br>, no emoji, no unquoted label holding brackets or parentheses, no edge
+  to a subgraph id, no `click` handler.
 
 With --render, each block is rendered to SVG with mmdc (from PATH, or the command
 given in --mmdc), falling back to the minlag/mermaid-cli Docker image. When no
 renderer exists the render check is reported as skipped, never as passed.
+--keep-svg DIR and --png DIR save each render as `<file stem>-<line>.svg|png`,
+where <line> is the line of the block's first line inside the fence.
 
 Usage: python3 validate_diagrams.py [--repo-root DIR] [--render] [--mmdc CMD]
+                                    [--keep-svg DIR] [--png DIR]
                                     [--max-nodes N] [--max-edges N] FILE.md [...]
 Output: `file:line: message` per error, `file:line: warning: message` per warning;
 exit code 1 if there is any error.
 """
 
 import argparse
+import ast
 import os
 import re
 import shlex
@@ -64,6 +72,7 @@ class Graph:
     nodes: dict = field(default_factory=dict)  # id -> file line of first appearance
     edges: int = 0
     issues: list = field(default_factory=list)  # (file line, message)
+    linked: dict = field(default_factory=dict)  # id -> file line of first edge touching it
 
     def add(self, node_id, line):
         self.nodes.setdefault(node_id, line)
@@ -172,6 +181,9 @@ def _scan_flow_line(line, n, graph):
         graph.add(node_id, n)
     groups = [g for g in groups if g]
     graph.edges += sum(len(a) * len(b) for a, b in zip(groups, groups[1:]))
+    if len(groups) > 1:
+        for node_id in (i for g in groups for i in g):
+            graph.linked.setdefault(node_id, n)
 
 
 def parse_flowchart(body):
@@ -190,6 +202,9 @@ def parse_flowchart(body):
         _scan_flow_line(line, n, graph)
     for sg in subgraphs:
         graph.nodes.pop(sg, None)
+        if sg in graph.linked:
+            graph.issues.append((graph.linked[sg], f"edge to subgraph `{sg}`; "
+                                 "connect to a node inside it"))
     return graph
 
 
@@ -304,8 +319,45 @@ def check_location(loc, root, n, err):
             lo, hi = int(a), int(b or a)
             if lo < 1 or hi < lo or hi > count:
                 err(n, f"anchor `{rel}:{part}` is outside the file's {count} lines")
-    if symbol and symbol not in target.read_text(errors="replace"):
-        err(n, f"anchor `{rel}#{symbol}`: `{symbol}` does not occur in the file")
+    if symbol and not defines(target, symbol):
+        err(n, f"anchor `{rel}#{symbol}`: no definition of `{symbol}` in the file")
+
+
+def _python_defines(tree, parts):
+    """True when `parts` (e.g. ["Class", "method"]) names a def/class/assignment path."""
+    scope = tree.body
+    for i, part in enumerate(parts):
+        last = i == len(parts) - 1
+        found = None
+        for node in scope:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                if node.name == part:
+                    found = node
+                    break
+            elif last and isinstance(node, (ast.Assign, ast.AnnAssign)):
+                targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+                if any(isinstance(t, ast.Name) and t.id == part for t in targets):
+                    return True
+        if found is None:
+            return False
+        scope = found.body
+    return True
+
+
+def defines(target, symbol):
+    text = target.read_text(errors="replace")
+    if target.suffix == ".py":
+        try:
+            return _python_defines(ast.parse(text), symbol.split("."))
+        except SyntaxError:
+            pass  # not parseable as Python; fall back to the whole-word check
+    if target.suffix in (".sh", ".bash") or text.startswith("#!/usr/bin/env bash") \
+            or text.startswith("#!/bin/bash") or text.startswith("#!/bin/sh"):
+        name = re.escape(symbol)
+        return re.search(rf"^\s*(?:function\s+)?{name}\s*\(\)|"
+                         rf"^\s*(?:export\s+|readonly\s+|local\s+|declare\s+\S+\s+)?{name}=",
+                         text, re.M) is not None
+    return re.search(rf"(?<![\w-]){re.escape(symbol)}(?![\w-])", text) is not None
 
 
 def check_anchors(graph, anchors, root, err, warn):
@@ -360,6 +412,8 @@ def validate_block(block, root, limits, out):
     for n, raw in body:
         if raw.strip().startswith("%%"):
             continue
+        if re.match(r"\s*click\s", raw):
+            err(n, "`click` handler; GitHub's sandbox may drop it — the anchor points at the code")
         if "\\n" in raw:
             err(n, "literal `\\n` in a label; use <br> or a shorter label")
         if HTML_TAG.search(raw):
@@ -440,7 +494,7 @@ def find_renderer(mmdc):
     return None, None
 
 
-def render_blocks(blocks, mmdc, out, keep=None):
+def render_blocks(blocks, mmdc, out, keep=None, png=None):
     name, run = find_renderer(mmdc)
     if run is None:
         out.append(("render", 0, "render skipped (no mmdc or docker); syntax not verified", True))
@@ -462,9 +516,22 @@ def render_blocks(blocks, mmdc, out, keep=None):
                 at = next((i for i, l in enumerate(lines) if "rror" in l), 0)
                 detail = " | ".join(l.strip() for l in lines[at:at + 4] if l.strip())
                 out.append((block.path, block.start, f"render failed: {detail[:400]}", False))
-            elif keep:
+                continue
+            stem = f"{Path(block.path).stem}-{block.start}"
+            if keep:
                 Path(keep).mkdir(parents=True, exist_ok=True)
-                shutil.copy(dst, Path(keep) / f"{Path(block.path).stem}-{block.start}.svg")
+                shutil.copy(dst, Path(keep) / f"{stem}.svg")
+            if png:
+                dst_png = Path(tmp) / f"d{i}.png"
+                try:
+                    failure = run(src, dst_png)
+                except subprocess.TimeoutExpired:
+                    failure = "renderer timed out"
+                if failure or not dst_png.exists():
+                    out.append((block.path, block.start, "PNG render failed; the SVG rendered", True))
+                else:
+                    Path(png).mkdir(parents=True, exist_ok=True)
+                    shutil.copy(dst_png, Path(png) / f"{stem}.png")
 
 
 def main(argv=None):
@@ -474,6 +541,7 @@ def main(argv=None):
     parser.add_argument("--render", action="store_true", help="render each block to SVG")
     parser.add_argument("--mmdc", help="renderer command, e.g. 'npx -y @mermaid-js/mermaid-cli'")
     parser.add_argument("--keep-svg", help="with --render, copy the SVGs into this directory")
+    parser.add_argument("--png", help="with --render, also save a PNG of each block here, to look at")
     parser.add_argument("--max-nodes", type=int, default=MAX_NODES)
     parser.add_argument("--max-edges", type=int, default=MAX_EDGES)
     args = parser.parse_args(argv)
@@ -499,7 +567,7 @@ def main(argv=None):
     if root is None and blocks:
         out.append(("anchors", 0, "locations not checked against the code (no --repo-root)", True))
     if args.render and blocks:
-        render_blocks(blocks, args.mmdc, out, args.keep_svg)
+        render_blocks(blocks, args.mmdc, out, args.keep_svg, args.png)
 
     errors = [o for o in out if not o[3]]
     for path, n, msg, is_warning in out:

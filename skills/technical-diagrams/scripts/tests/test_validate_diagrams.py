@@ -34,7 +34,7 @@ VALID = """\
     ```
 """
 
-API = "def login(user):\n    return SELECT\n# 3 lines\n"
+API = "def login(user):\n    return SELECT\nSELECT = \"select * from users\"\n"
 
 
 class ValidateDiagramsTest(unittest.TestCase):
@@ -85,7 +85,41 @@ class ValidateDiagramsTest(unittest.TestCase):
         code, out = self.run_on(md, "--repo-root", str(self.root))
         self.assertEqual(code, 1)
         self.assertIn("`src/gone.py` does not exist", out)
-        self.assertIn("`INSERT` does not occur in the file", out)
+        self.assertIn("no definition of `INSERT` in the file", out)
+
+    def test_symbol_must_be_a_definition_not_any_mention(self):
+        # A name in an import, a comment, or a string is not where the thing lives.
+        (self.root / "src" / "gui.py").write_text(
+            "from PyQt5 import QtWidgets  # MainWindow lives below\n"
+            "class MainWindow:\n    def show(self):\n        pass\n")
+        (self.root / "run.sh").write_text("#!/usr/bin/env bash\nHUB=1\ninstall_all() { :; }\necho HUB_DIR\n")
+        (self.root / "ci.yml").write_text("jobs:\n  package-zips:\n    name: Package\n")
+
+        def check(anchor):
+            md = VALID.replace("%% @db: src/api.py#SELECT", f"%% @db: {anchor}")
+            return self.run_on(md, "--repo-root", str(self.root))[0]
+
+        for ok in ("src/gui.py#MainWindow", "src/gui.py#MainWindow.show", "src/api.py#login",
+                   "run.sh#HUB", "run.sh#install_all", "ci.yml#Package", "ci.yml#package-zips"):
+            self.assertEqual(check(ok), 0, ok)
+        for bad in ("src/gui.py#PyQt5", "src/gui.py#QtWidgets", "src/gui.py#MainWindow.hide",
+                    "src/gui.py#show", "run.sh#HUB_DIR", "ci.yml#package"):
+            self.assertEqual(check(bad), 1, bad)
+
+    def test_edge_to_a_subgraph_id_fails(self):
+        md = VALID.replace("      api --> db[(\"users table\")]",
+                           "      subgraph data [\"Data\"]\n        db[(\"users table\")]\n      end\n"
+                           "      api --> data")
+        code, out = self.run_on(md)
+        self.assertEqual(code, 1)
+        self.assertIn("edge to subgraph `data`", out)
+        code, _ = self.run_on(md.replace("api --> data", "api --> db"))
+        self.assertEqual(code, 0)
+
+    def test_click_handler_fails(self):
+        code, out = self.run_on(VALID.replace("      api --> db", '      click api "https://x"\n      api --> db'))
+        self.assertEqual(code, 1)
+        self.assertIn("`click` handler", out)
 
     def test_locations_unchecked_without_repo_root_is_reported(self):
         md = VALID.replace("api.py:2-3", "api.py:2-40")
@@ -191,6 +225,16 @@ class ValidateDiagramsTest(unittest.TestCase):
             code, out = self.run_on(VALID, "--render")
         self.assertEqual(code, 0)
         self.assertIn("warning: render skipped", out)
+
+    def test_png_is_saved_next_to_the_svg_with_the_block_line_in_the_name(self):
+        def fake_run(cmd, **kwargs):
+            Path(cmd[cmd.index("-o") + 1]).write_text("<svg/>")
+            return mock.Mock(returncode=0, stderr="", stdout="")
+        png_dir = self.root / "png"
+        with mock.patch.object(validate_diagrams.subprocess, "run", side_effect=fake_run):
+            code, out = self.run_on(VALID, "--render", "--mmdc", "mmdc", "--png", str(png_dir))
+        self.assertEqual(code, 0, out)
+        self.assertEqual([p.name for p in png_dir.iterdir()], ["doc-4.png"])
 
     def test_render_failure_is_an_error(self):
         def fake_run(cmd, **kwargs):

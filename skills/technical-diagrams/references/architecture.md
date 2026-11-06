@@ -6,6 +6,7 @@ the system is, who uses it, and which deployable pieces it is made of.
 ## Contents
 
 - Two levels
+- One process: modules instead of containers
 - Lanes
 - Rules
 - Granularity
@@ -24,6 +25,20 @@ Draw a component view (the modules inside one container) only when it changes ho
 on the code — and then as a dependency graph of modules, not of classes. Both levels are drawn as
 `flowchart LR` with subgraphs; Mermaid's C4 syntax does not render reliably on GitHub.
 
+## One process: modules instead of containers
+
+A CLI, a desktop app, a library, or a monolith runs as one process, so its container view is a
+single box — skip it. Draw the system context, then a **module dependency graph** in its place:
+the packages or directories that own a responsibility (the entry point, the job runner, the
+plugin factory, the pipeline, the storage layer) as nodes, anchored to their directories, with the
+calls between them as edges. Leave out utility modules every other module imports; an edge from
+everything to `utils/` says nothing.
+
+When a run of the program is the thing a newcomer needs to understand (what happens between
+`main` and the output files), add a **sequence diagram of one representative run** under a "How a
+run works" section, after the codemap. Its participants are the same modules as the dependency
+graph, with the same ids, so the reader can move between the two figures.
+
 ## Lanes
 
 Place nodes in subgraphs by role, left to right in the order a request travels:
@@ -39,6 +54,13 @@ Place nodes in subgraphs by role, left to right in the order a request travels:
 
 Use the display label for the human title: `subgraph service ["Core services"]`. Omit lanes the
 system does not have.
+
+These lanes describe a networked system. For a local program, keep only the roles that exist and
+give them local names: the user and the interfaces they use (`subgraph client ["You"]`), the
+program itself as one node, what it reads and writes on disk (`subgraph datastore ["On disk"]` —
+input folders, a SQLite file, a cache), and the remote services it calls (`external`). Anchor each
+remote service to the adapter in the repository that calls it, not to `external`, when there is
+one.
 
 ## Rules
 

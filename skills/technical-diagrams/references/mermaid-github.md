@@ -62,7 +62,8 @@ nodes: merge two relationships into one label instead of drawing two arrows.
 
 Group nodes that share a boundary — a deployable unit, a layer, a trust zone:
 `subgraph api ["Public API"] ... end`. Connect edges to nodes inside the subgraph, not to the
-subgraph id. Subgraphs do not need anchors; their nodes do.
+subgraph id — the validator rejects an edge to a subgraph. Subgraphs do not need anchors; their
+nodes do.
 
 ## Highlighting
 
@@ -88,7 +89,7 @@ is not enough. Screen readers announce them; the validator requires `accTitle`.
 - Frontmatter (`---` / `config:`) or `%%{init: ...}%%` theme overrides: they fix colors that then
   clash with the reader's theme. Leave theming to GitHub.
 - `click` handlers and links inside nodes: GitHub renders diagrams in a sandbox where they may not
-  work, and the anchor comment already points at the code.
+  work, and the anchor comment already points at the code. The validator rejects them.
 - Notes in sequence diagrams are fine; long notes push the figure wide — keep them short.
 - A parse error renders as an error box in the pull request. The validator's `--render` catches
   it before anyone else sees it.
