@@ -5,7 +5,7 @@ Use this when a PR workflow has to **comment, label, upload a preview or report 
 1. `pull_request` (unprivileged): builds and tests the untrusted code and uploads **data** as an artifact.
 2. `workflow_run` (privileged): runs the **default-branch** version of its own file, never checks out PR code, downloads the artifact, validates it as data and does the write.
 
-Validated: actionlint 1.7.12 and zizmor 1.30.1 report nothing. `workflow_run` is always flagged by zizmor `dangerous-triggers`; it is silenced with an inline `# zizmor: ignore[...]` **that states why**, which is the reviewable way to accept a finding.
+Validated: zizmor 1.32.0 reports nothing, and actionlint 1.7.12 flags only the newer `cache-mode` key (a false positive, see `references/review-checklist.md`). `workflow_run` is always flagged by zizmor `dangerous-triggers`; it is silenced with an inline `# zizmor: ignore[...]` **that states why**, which is the reviewable way to accept a finding.
 
 ## 1. Unprivileged: `.github/workflows/pr-test.yml`
 
@@ -31,7 +31,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -44,7 +44,7 @@ jobs:
           mkdir -p report
           jq --argjson pr "$PR_NUMBER" '{pr: $pr, lines: .total.lines.pct}' \
             coverage/coverage-summary.json > report/report.json
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: pr-report
           path: report/report.json
@@ -73,12 +73,13 @@ jobs:
     if: github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-slim
     timeout-minutes: 5
+    cache-mode: none # privileged trigger: never restore a cache
     permissions:
       actions: read        # download the artifact from the triggering run
       pull-requests: write # post the comment
     steps:
       # No checkout: nothing from the PR is ever executed here.
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: pr-report
           path: ${{ runner.temp }}/pr-report
@@ -106,4 +107,5 @@ jobs:
 - **Values reach the shell through `env:` and `jq`**, never through `${{ }}` in `run:`.
 - **`ubuntu-slim`**: the job is an API call, so the 1-vCPU runner costs ⅓ of the standard one.
 - **`retention-days: 1`**: the artifact only needs to live until the second workflow consumes it.
+- **`cache-mode: none`**: `workflow_run` defaults to `cache-mode: read`, so any cache action added later would restore main's cache into a job with a write token. `none` closes that at the token level.
 - Only `actions: read` and `pull-requests: write`. No `contents: write`, no secrets.

@@ -27,7 +27,7 @@ Severity: 🔴 security/correctness · 🟠 cost/speed · 🟡 maintainability.
 | 17 | Full matrix (versions × OS) on every PR; macOS/Windows cells without need | 🟠 | manual |
 | 18 | `fetch-depth: 0` without `filter:`; full checkout for a monorepo package | 🟠 | step time |
 | 19 | Setup actions or installs for tools already on the image; `pip install uv` per job | 🟠 | zizmor `superfluous-actions` |
-| 20 | Heavy jobs on `ubuntu-latest` (moves to 26.04 in Oct–Nov 2026) or unpinned images | 🟡 | manual |
+| 20 | Heavy jobs on `ubuntu-latest` (moving to 26.04, 2026-10-19 to 2026-11-19) or unpinned images | 🟡 | manual |
 | 21 | Artifacts with default retention (often 90 days) for CI-only outputs | 🟡 | manual |
 | 22 | Permissions without a comment explaining why; jobs/workflows without `name:` | 🟡 | zizmor pedantic |
 | 23 | No Dependabot/Renovate for `github-actions` (SHA pins rot) | 🟡 | zizmor `dependabot-cooldown` |
@@ -40,9 +40,9 @@ docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:1.7.12 -color
 
 # Security audit. --offline skips network audits; add --gh-token for impostor-commit,
 # known-vulnerable-actions, stale-action-refs. --persona=pedantic for review-level noise.
-docker run --rm -v "$PWD":/repo -w /repo ghcr.io/zizmorcore/zizmor:1.30.1 --offline .github/workflows
+docker run --rm -v "$PWD":/repo -w /repo ghcr.io/zizmorcore/zizmor:1.32.0 --offline .github/workflows
 docker run --rm -e GH_TOKEN="$(gh auth token)" -v "$PWD":/repo -w /repo \
-  ghcr.io/zizmorcore/zizmor:1.30.1 --persona=pedantic .github/workflows
+  ghcr.io/zizmorcore/zizmor:1.32.0 --persona=pedantic .github/workflows
 
 # Pins
 pinact run --check

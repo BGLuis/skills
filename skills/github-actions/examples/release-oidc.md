@@ -13,7 +13,7 @@ Validated on the bench repo with tags v0.1.0–v0.1.3:
 - A tag without a version bump failed in `build`, so nothing was published.
 - `concurrency.queue` was accepted.
 
-zizmor 1.30.1 reports nothing. actionlint 1.7.12 flags only the newer `queue` and `cache-mode` keys (false positives, see `references/review-checklist.md`). The `pypi` job needs a PyPI trusted publisher, so it was linted but not run.
+zizmor 1.32.0 reports nothing. actionlint 1.7.12 flags only the newer `queue` and `cache-mode` keys (false positives, see `references/review-checklist.md`). The `pypi` job needs a PyPI trusted publisher, so it was linted but not run.
 
 ```yaml
 name: release
@@ -43,7 +43,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           enable-cache: false # release: never restore a cache someone else wrote
       - name: Tag must match the package version
@@ -54,7 +54,7 @@ jobs:
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: dist/*
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dist
           path: dist/
@@ -66,27 +66,29 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    cache-mode: none # holds publishing rights: no cache at all
     environment:
       name: pypi
       url: https://pypi.org/p/my-package
     permissions:
       id-token: write # trusted publishing to PyPI
     steps:
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: dist
           path: dist/
-      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
 
   github-release:
     name: github-release
     needs: build
     runs-on: ubuntu-slim
     timeout-minutes: 5
+    cache-mode: none # holds publishing rights: no cache at all
     permissions:
       contents: write # create the release and upload assets
     steps:
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: dist
           path: dist/
@@ -100,7 +102,7 @@ jobs:
 ## Why it looks like this
 
 - **Build once, publish the same bytes.** Every consumer downloads the artifact. Nothing rebuilds, so what was attested is what ships. `download-artifact@v8` fails if the digest doesn't match.
-- **No cache in release workflows.** A cache is written by a less trusted run (any push to main) and restored into the job that holds publishing rights. `cache-mode: none` enforces that at the token level, and `enable-cache: false` makes the intent visible in the action (setup-uv v10 already skips caching on tag pushes).
+- **No cache in release workflows.** A cache is written by a less trusted run (any push to main) and restored into the job that holds publishing rights. `cache-mode: none` on **every** job of the workflow enforces that at the token level (the publishing jobs restore nothing today, but the token guarantees it stays that way when someone adds a setup action), and `enable-cache: false` makes the intent visible in the action (setup-uv v10 already skips caching on tag pushes).
 - **Permissions per job.** `build` can sign but not write the repo. `pypi` can only mint an OIDC token. `github-release` can write contents but has no OIDC. A compromised build step can't create a release.
 - **The `pypi` environment** holds the protection rules (required reviewers, tag pattern `v*`). On PyPI, configure the trusted publisher with repo + workflow `release.yml` + environment `pypi`, so a token minted anywhere else is rejected.
 - **`concurrency: release`, `cancel-in-progress: false`, `queue: max`**: tags pushed close together all complete, one after the other. Without `queue: max`, only one run can be pending, so a third tag would cancel the second one while it waits.

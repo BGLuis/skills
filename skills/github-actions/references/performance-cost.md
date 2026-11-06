@@ -26,7 +26,7 @@ Consequence: for small and medium projects, **the number of jobs dominates the b
 | `macos-15` / `macos-26` (M1) | 3 / 7 GB | same | $0.062 | only when you ship to Apple platforms; keep to one cell |
 | larger runners | 2–96 vCPU | — | from $0.006 | long CPU-bound builds where wall-clock time costs more than money |
 
-- **Pin the image** (`ubuntu-24.04`, not `ubuntu-latest`). `ubuntu-latest` moves to Ubuntu 26.04 gradually between 2026-10-19 and 2026-11-19, and `macos-latest` moved to macOS 26 in mid-2026. A label that moves under you breaks toolchains on a random day.
+- **Pin the image** (`ubuntu-24.04`, not `ubuntu-latest`). `ubuntu-latest` is moving to Ubuntu 26.04 gradually between 2026-10-19 and 2026-11-19 ([changelog](https://github.blog/changelog/2026-09-17-ubuntu-26-generally-available-and-latest-migration)), so a run may land on either image during that window, and `macos-latest` moved to macOS 26 in mid-2026. A label that moves under you breaks toolchains on a random day.
 - Private-repo standard runners have **2 vCPU**. Parallel test runners (`-j`, `--workers`, parallel steps) beyond 2 just contend for CPU there.
 - `ubuntu-slim` has a hard 15-minute limit, a minimal tool set, and runs as an **unprivileged container**: no Docker, no mounts. Don't run builds on it.
 - A larger runner can be **cheaper** for a CPU-bound build: 4× the cores at 2× the price is a win if the build scales. Measure before you switch.

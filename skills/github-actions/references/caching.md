@@ -66,11 +66,11 @@ Built-in caches key on the lockfile and cache the **download cache**, not `node_
 With built-in caches, gate saving where the action supports it:
 
 ```yaml
-- uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+- uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
   with:
     save-if: ${{ github.ref == 'refs/heads/main' }}
 
-- uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+- uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
   with:
     distribution: temurin
     java-version: '25'

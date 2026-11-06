@@ -14,7 +14,7 @@ Act as a Platform Engineer. Every workflow you write or review must satisfy, in 
 3. **Resolve pins**: every `uses:` gets a full SHA + `# vX.Y.Z` comment. Take them from `references/versions.md`, and re-resolve with `gh api` if the table is stale.
 4. **Validate** when Docker (or the binaries) is available:
    - `docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:1.7.12` (no errors, except its known false positives on the 2026 keys `parallel:`/`background:`, `concurrency.queue` and `cache-mode`)
-   - `docker run --rm -v "$PWD":/repo -w /repo ghcr.io/zizmorcore/zizmor:1.30.1 --offline .github/workflows` (no findings, or each one silenced inline with a reason)
+   - `docker run --rm -v "$PWD":/repo -w /repo ghcr.io/zizmorcore/zizmor:1.32.0 --offline .github/workflows` (no findings, or each one silenced inline with a reason)
 5. **Measure** when you can run it (`gh run view --json jobs`, see `references/review-checklist.md` §2): cold, warm and code-change runs. Report wall-clock, job time and **billable minutes**. Mark numbers as *estimated* when you could not run them. Hosted runners vary by up to about 2× between identical runs, so compare medians of ≥ 3.
 
 ## 1. Non-negotiable rules
@@ -28,7 +28,7 @@ Act as a Platform Engineer. Every workflow you write or review must satisfy, in 
 - No cache restores in release, publish or privileged jobs: `cache-mode: none` on those jobs. Never set `cache-mode: write` on a low-trust trigger.
 - `timeout-minutes` on every job (the default is 360).
 - `concurrency` on every PR workflow: `group: ${{ github.workflow }}-${{ github.ref }}`, `cancel-in-progress: ${{ github.event_name == 'pull_request' }}`. Deploys use a fixed group that never cancels.
-- Pinned runner images (`ubuntu-24.04`), not `-latest` (`ubuntu-latest` moves to 26.04 in Oct–Nov 2026).
+- Pinned runner images (`ubuntu-24.04`), not `-latest` (`ubuntu-latest` is moving to 26.04 between 2026-10-19 and 2026-11-19).
 - Current action majors only. Node 24 is the only runtime on the runners (Node 20 removal: 2026-09-23). `@v4`-era actions still run, but the runner **forces them onto Node 24** with a deprecation warning, a combination their authors never tested.
 
 ## 2. Minimum resources: the levers that matter (measured)

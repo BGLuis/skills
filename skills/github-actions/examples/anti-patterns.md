@@ -23,7 +23,7 @@ Never produce these. Each one comes with what it costs and the fix. The "Detecte
 | 17 | `actions/cache` saving on every PR | PR-scoped caches nobody can reuse, evicting main's | save only on the default branch | `gh cache list` |
 | 18 | `actions/checkout@v4`, `actions/cache@v4`, `setup-node@v4` | Node 20 runtime deprecated. The runner forces them onto Node 24 with a warning, an untested combination | current majors (`references/versions.md`) | run log: `being forced to run on Node.js 24` |
 | 19 | QEMU (`setup-qemu-action`) for multi-arch when the language cross-compiles | every `RUN` emulated, several times slower | `FROM --platform=$BUILDPLATFORM` + `GOOS/GOARCH`, or native `ubuntu-24.04-arm` | measure (`docker-build-push.md`) |
-| 20 | `runs-on: ubuntu-latest` for toolchain-sensitive builds | image changes under you (→ 26.04, Oct–Nov 2026) | `ubuntu-24.04` | manual |
+| 20 | `runs-on: ubuntu-latest` for toolchain-sensitive builds | image changes under you (→ 26.04, rolled out 2026-10-19 to 2026-11-19) | `ubuntu-24.04` | manual |
 | 21 | `if: github.actor == 'dependabot[bot]'` to grant privileges | spoofable in some flows | check `github.event.pull_request.user.login` and the event | zizmor `bot-conditions` |
 | 22 | Self-hosted runner on a public repo | any fork PR runs code on your machine | GitHub-hosted runners; self-hosted only for private repos with ephemeral runners | zizmor `self-hosted-runner` |
 
@@ -58,4 +58,4 @@ jobs:
       - run: npm test
 ```
 
-zizmor 1.30.1 (`--offline`, regular persona) on this file: 9 findings. `unpinned-uses` ×4 (high), `excessive-permissions` ×3 (medium), `artipacked` ×2 (low). The concurrency, timeout, job-count and matrix problems are invisible to linters, so they need a review and a measurement. `on: [push, pull_request]` also runs every PR commit twice for branches in the same repo.
+zizmor 1.32.0 (`--offline`, regular persona) on this file: 9 findings. `unpinned-uses` ×4 (high), `excessive-permissions` ×3 (medium), `artipacked` ×2 (low). The concurrency, timeout, job-count and matrix problems are invisible to linters, so they need a review and a measurement. `on: [push, pull_request]` also runs every PR commit twice for branches in the same repo.
