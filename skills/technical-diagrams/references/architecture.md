@@ -23,7 +23,10 @@ Two levels of the C4 model cover what most readers need:
 
 Draw a component view (the modules inside one container) only when it changes how someone works
 on the code — and then as a dependency graph of modules, not of classes. Both levels are drawn as
-`flowchart LR` with subgraphs; Mermaid's C4 syntax does not render reliably on GitHub.
+a `flowchart` with subgraphs; Mermaid's C4 syntax does not render reliably on GitHub. Pick the
+direction with the rule in `choosing.md`: a context figure is usually a hub — the system node with
+an edge to everything it touches — so it starts as `TD`; a container figure with a few lanes in a
+row starts as `LR`.
 
 ## One process: modules instead of containers
 
@@ -39,9 +42,15 @@ When a run of the program is the thing a newcomer needs to understand (what happ
 run works" section, after the codemap. Its participants are the same modules as the dependency
 graph, with the same ids, so the reader can move between the two figures.
 
+When one module runs data through a fixed series of steps that branches — a step skipped when the
+cache already holds the answer, a retry, an early exit — draw that pipeline as its own flowchart
+in the section that describes the module, after the dependency graph. A pipeline that never
+branches stays a numbered list (`choosing.md`, When not to draw).
+
 ## Lanes
 
-Place nodes in subgraphs by role, left to right in the order a request travels:
+Place nodes in subgraphs by role, in the order a request travels (left to right in `LR`, top to
+bottom in `TD`):
 
 | Subgraph id | Holds |
 |---|---|
@@ -85,7 +94,8 @@ a component view, not in the container view.
 
 The file is a map for someone new to the code: the bird's-eye view, then a codemap of where things
 live, then the invariants that are not visible in any single file. It stays short, because every
-contributor is meant to read all of it: about 100–200 lines for a new one. Inventories — every
+contributor is meant to read all of it: about 100–200 lines of prose for a new one — the Mermaid
+blocks are not counted, since each figure costs 20–30 lines of source. Inventories — every
 file, every flag, every provider option — belong in the code, the README, or reference docs, not
 here.
 

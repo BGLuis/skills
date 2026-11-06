@@ -240,7 +240,7 @@ class ValidateDiagramsTest(unittest.TestCase):
         self.assertIn("render: 1 of 1 diagram(s) rendered", out)
         self.assertIn(f"png: {png_dir / 'doc-4.png'}", out)
 
-    def test_png_left_by_an_earlier_run_is_flagged_not_shown_as_current(self):
+    def test_png_left_by_an_earlier_run_is_removed_and_others_kept(self):
         def fake_run(cmd, **kwargs):
             Path(cmd[cmd.index("-o") + 1]).write_text("<svg/>")
             return mock.Mock(returncode=0, stderr="", stdout="")
@@ -251,8 +251,8 @@ class ValidateDiagramsTest(unittest.TestCase):
         with mock.patch.object(validate_diagrams.subprocess, "run", side_effect=fake_run):
             code, out = self.run_on(VALID, "--render", "--mmdc", "mmdc", "--png", str(png_dir))
         self.assertEqual(code, 0, out)
-        self.assertIn("doc-40.png:0: warning: PNG from an earlier run", out)
-        self.assertNotIn("other-3.png", out)
+        self.assertIn(f"png: removed {png_dir / 'doc-40.png'}", out)
+        self.assertEqual(sorted(p.name for p in png_dir.iterdir()), ["doc-4.png", "other-3.png"])
 
     def test_render_failure_is_an_error(self):
         def fake_run(cmd, **kwargs):

@@ -14,12 +14,12 @@ answers neither, and a figure that needs a legend of invented symbols is answeri
 
 | The reader asks | Draw | Mermaid |
 |---|---|---|
-| What happens, in what order, with which decisions? | Process flow | `flowchart LR` (or `TD` for deep trees) |
+| What happens, in what order, with which decisions? | Process flow | `flowchart` (direction below) |
 | Who talks to whom, in what order, with what messages? | Sequence | `sequenceDiagram` |
 | Which states can this thing be in, and what moves it? | State machine | `stateDiagram-v2` |
 | What data exists and how does it relate? | Entity-relationship | `erDiagram` |
-| What is this system, who uses it, what does it depend on? | System context | `flowchart LR` with subgraphs (`architecture.md`) |
-| Which deployable pieces make up the system and how do they connect? | Containers | `flowchart LR` with lanes (`architecture.md`) |
+| What is this system, who uses it, what does it depend on? | System context | `flowchart TD` with subgraphs (`architecture.md`) |
+| Which deployable pieces make up the system and how do they connect? | Containers | `flowchart` with lanes (`architecture.md`) |
 | Which modules depend on which? | Dependency graph | `flowchart TD`, modules as nodes |
 
 Draw behavior and structure at the level of systems, services, modules, roles, states, and

@@ -23,7 +23,9 @@ With --render, each block is rendered to SVG with mmdc (from PATH, or the comman
 given in --mmdc), falling back to the minlag/mermaid-cli Docker image. When no
 renderer exists the render check is reported as skipped, never as passed.
 --keep-svg DIR and --png DIR save each render as `<file stem>-<line>.svg|png`,
-where <line> is the line of the block's first line inside the fence.
+where <line> is the line of the block's first line inside the fence. --png also
+removes `<file stem>-<line>.png` files in DIR that this run did not write, so a
+block that moved does not leave an outdated image behind.
 
 Usage: python3 validate_diagrams.py [--repo-root DIR] [--render] [--mmdc CMD]
                                     [--keep-svg DIR] [--png DIR]
@@ -540,12 +542,14 @@ def render_blocks(blocks, mmdc, out, keep=None, png=None):
                     written.append(Path(png) / f"{stem}.png")
     summary = [f"render: {rendered} of {len(blocks)} diagram(s) rendered"]
     summary += [f"png: {p}" for p in written]
-    if png:
+    if png and Path(png).is_dir():
+        # A block that moved leaves its old <stem>-<line>.png behind; looking at it reviews a
+        # figure that no longer exists. Only names this script writes for these files are removed.
         stems = {Path(b.path).stem for b in blocks}
         for old in sorted(Path(png).glob("*.png")):
             if old not in written and any(re.fullmatch(rf"{re.escape(st)}-\d+", old.stem) for st in stems):
-                out.append((str(old), 0, "PNG from an earlier run (the block moved or was removed); "
-                            "look only at the files listed under png:", True))
+                old.unlink()
+                summary.append(f"png: removed {old} (left by an earlier run)")
     return summary
 
 

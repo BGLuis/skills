@@ -54,7 +54,9 @@ quoting, and highlighting. Every figure has:
   its own adapter is anchored to that adapter (`%% @stripe: src/payments/stripe_client.py`);
   `external` is for what no code in the repository reaches directly — a person, a CI service.
   Data that is not code — a folder on disk, a database file — is anchored to the code that reads
-  and writes it. A node drawn in two figures keeps the same id and the same anchor in both.
+  and writes it. A decision is anchored to the code that makes it (the `if`'s function), a start
+  or end node to where the flow begins or finishes (the entry point, the function that returns or
+  writes the result). A node drawn in two figures keeps the same id and the same anchor in both.
   A symbol must be a definition: in Python a `def`, `class`, or module-level name
   (`Class.method` for a method), in shell a function or variable, elsewhere the name as a whole
   word. An import or a mention in a comment does not count.
@@ -91,8 +93,8 @@ it validated.
 
 **Look at the render before handing it off.** Add `--png <scratch-dir>`; each figure is saved as
 `<file stem>-<line>.png`, the line of the block's first line, and the output lists the files of
-this run under `png:` — open every one of them, and only those (a PNG flagged as from an earlier
-run belongs to a block that has since moved). Passing the budget
+this run under `png:` — open every one of them. PNGs an earlier run left for blocks that have
+since moved are removed, so the folder holds only current figures. Passing the budget
 does not make a figure readable: redraw it when an arrow crosses the whole figure, when one node
 sits far from the others it connects to, when the figure is so wide that its text shrinks below
 the paragraph's, or when several arrows leave the same point and merge. Try the other direction
