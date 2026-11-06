@@ -452,11 +452,13 @@ def validate_block(block, root, limits, out):
 
     nodes, edges = len(graph.nodes), graph.edges
     max_nodes, max_edges = limits
-    if nodes > max_nodes or edges > max_edges:
-        err(n0, f"{nodes} nodes / {edges} edges exceeds the {max_nodes}/{max_edges} maximum; "
-                "split into an overview and a detail diagram")
-    elif nodes > TARGET_NODES or edges > TARGET_EDGES:
-        warn(n0, f"{nodes} nodes / {edges} edges is above the {TARGET_NODES}/{TARGET_EDGES} target")
+    counts = ((nodes, "nodes", max_nodes, TARGET_NODES), (edges, "edges", max_edges, TARGET_EDGES))
+    over = [f"{v} {k} (max {m})" for v, k, m, _ in counts if v > m]
+    above = [f"{v} {k} (target {t})" for v, k, _, t in counts if v > t]
+    if over:
+        err(n0, f"{' and '.join(over)}; split into an overview and a detail diagram")
+    elif above:
+        warn(n0, f"{' and '.join(above)}; check the render for crowding")
 
     anchors = []
     for n, raw in body:
@@ -495,11 +497,13 @@ def find_renderer(mmdc):
 
 
 def render_blocks(blocks, mmdc, out, keep=None, png=None):
+    """Renders every block; returns summary lines for stdout."""
     name, run = find_renderer(mmdc)
     if run is None:
         out.append(("render", 0, "render skipped (no mmdc or docker); syntax not verified", True))
-        return
+        return []
     print(f"render: using {name}", file=sys.stderr)
+    rendered, written = 0, []
     with tempfile.TemporaryDirectory() as tmp:
         for i, block in enumerate(blocks):
             src = Path(tmp) / f"d{i}.mmd"
@@ -517,6 +521,7 @@ def render_blocks(blocks, mmdc, out, keep=None, png=None):
                 detail = " | ".join(l.strip() for l in lines[at:at + 4] if l.strip())
                 out.append((block.path, block.start, f"render failed: {detail[:400]}", False))
                 continue
+            rendered += 1
             stem = f"{Path(block.path).stem}-{block.start}"
             if keep:
                 Path(keep).mkdir(parents=True, exist_ok=True)
@@ -532,6 +537,16 @@ def render_blocks(blocks, mmdc, out, keep=None, png=None):
                 else:
                     Path(png).mkdir(parents=True, exist_ok=True)
                     shutil.copy(dst_png, Path(png) / f"{stem}.png")
+                    written.append(Path(png) / f"{stem}.png")
+    summary = [f"render: {rendered} of {len(blocks)} diagram(s) rendered"]
+    summary += [f"png: {p}" for p in written]
+    if png:
+        stems = {Path(b.path).stem for b in blocks}
+        for old in sorted(Path(png).glob("*.png")):
+            if old not in written and any(re.fullmatch(rf"{re.escape(st)}-\d+", old.stem) for st in stems):
+                out.append((str(old), 0, "PNG from an earlier run (the block moved or was removed); "
+                            "look only at the files listed under png:", True))
+    return summary
 
 
 def main(argv=None):
@@ -566,12 +581,15 @@ def main(argv=None):
 
     if root is None and blocks:
         out.append(("anchors", 0, "locations not checked against the code (no --repo-root)", True))
+    summary = []
     if args.render and blocks:
-        render_blocks(blocks, args.mmdc, out, args.keep_svg, args.png)
+        summary = render_blocks(blocks, args.mmdc, out, args.keep_svg, args.png)
 
     errors = [o for o in out if not o[3]]
     for path, n, msg, is_warning in out:
         print(f"{path}:{n}: {'warning: ' if is_warning else ''}{msg}")
+    for line in summary:
+        print(line)
     if errors:
         print(f"\n{len(errors)} error(s).", file=sys.stderr)
         return 1

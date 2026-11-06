@@ -20,15 +20,18 @@ answers neither, and a figure that needs a legend of invented symbols is answeri
 | What data exists and how does it relate? | Entity-relationship | `erDiagram` |
 | What is this system, who uses it, what does it depend on? | System context | `flowchart LR` with subgraphs (`architecture.md`) |
 | Which deployable pieces make up the system and how do they connect? | Containers | `flowchart LR` with lanes (`architecture.md`) |
-| Which modules depend on which? | Dependency graph | `flowchart LR`, modules as nodes |
+| Which modules depend on which? | Dependency graph | `flowchart TD`, modules as nodes |
 
 Draw behavior and structure at the level of systems, services, modules, roles, states, and
 business objects. Classes and methods stay in the code — an IDE generates a fresher picture of
 them than any committed one, and a figure at that level goes stale with the next refactor.
 `classDiagram` is outside this skill for that reason.
 
-Flowchart direction: `LR` for sequences of steps and pipelines; `TD` for hierarchies, deep trees,
-or many siblings at one level. Pick once; never change direction inside a figure.
+Flowchart direction: start with `LR` for a chain of steps or a pipeline, `TD` for a hierarchy, a
+deep tree, many siblings at one level, a hub with four or more outgoing edges, or a graph that is
+deeper than it is wide (a module dependency graph usually is). One direction per figure — never
+mix them inside it — but changing the figure's direction after looking at the render is the first
+fix to try (`SKILL.md` §4).
 
 ## When not to draw
 

@@ -66,7 +66,8 @@ one.
 
 - Requests flow `client → gateway → service → datastore`. A client does not reach a datastore, and
   a gateway does not reach a queue or an external API: a service mediates.
-- Edges to or from `async` and `external` nodes are dotted (`-.->`): they leave the request path.
+- Edges to or from `async` and `external` nodes are dotted (`-.->`): they leave the request path,
+  to another process or another machine — a local Ollama server counts.
 - Two datastores, two queues, or a datastore and a queue are never connected directly; the service
   that moves the data between them is a node.
 - Label each edge with the protocol or the purpose: `|"HTTPS"|`, `|"enqueue order.created"|`,
@@ -83,7 +84,18 @@ a component view, not in the container view.
 ## ARCHITECTURE.md
 
 The file is a map for someone new to the code: the bird's-eye view, then a codemap of where things
-live, then the invariants that are not visible in any single file. Figures support it like this:
+live, then the invariants that are not visible in any single file. It stays short, because every
+contributor is meant to read all of it: about 100–200 lines for a new one. Inventories — every
+file, every flag, every provider option — belong in the code, the README, or reference docs, not
+here.
+
+When the file already exists, keep its structure and its length: an update replaces wrong prose,
+it does not add to it. Check each claim next to a figure against the code; correct what the code
+contradicts and delete what it does not support, instead of appending a corrected version. The
+update grows the file only when the code grew — a new subsystem, not a better description of an
+old one.
+
+Figures support it like this:
 
 - the system context figure under the overview, the container figure under the codemap;
 - anchors to directories and symbols (`src/billing/`, `src/api/router.ts#createRouter`), not line

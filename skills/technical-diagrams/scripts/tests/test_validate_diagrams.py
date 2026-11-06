@@ -133,14 +133,15 @@ class ValidateDiagramsTest(unittest.TestCase):
         md = f"```mermaid\nflowchart LR\n  accTitle: big\n{anchors}\n{nodes}\n```\n"
         code, out = self.run_on(md)
         self.assertEqual(code, 1)
-        self.assertIn("14 nodes / 13 edges exceeds the 12/16 maximum", out)
+        self.assertIn("14 nodes (max 12); split", out)
+        self.assertNotIn("edges (max", out)
 
     def test_diagram_above_the_target_only_warns(self):
         nodes = "\n".join(f"  n{i} --> n{i + 1}" for i in range(10))
         anchors = "\n".join(f"  %% @n{i}: external" for i in range(11))
         code, out = self.run_on(f"```mermaid\nflowchart TD\n  accTitle: mid\n{anchors}\n{nodes}\n```\n")
         self.assertEqual(code, 0, out)
-        self.assertIn("warning: 11 nodes / 10 edges is above the 9/12 target", out)
+        self.assertIn("warning: 11 nodes (target 9); check the render", out)
 
     def test_fan_out_counts_every_edge(self):
         md = ("```mermaid\nflowchart LR\n  accTitle: fan\n" +
@@ -148,7 +149,8 @@ class ValidateDiagramsTest(unittest.TestCase):
               "  a --> b & c & d\n```\n")
         code, out = self.run_on(md, "--max-edges", "2")
         self.assertEqual(code, 1)
-        self.assertIn("4 nodes / 3 edges", out)
+        self.assertIn("3 edges (max 2)", out)
+        self.assertNotIn("nodes (max", out)
 
     def test_reserved_word_as_id_fails(self):
         md = VALID.replace("db[(", "end[(").replace("@db:", "@end:")
@@ -235,6 +237,22 @@ class ValidateDiagramsTest(unittest.TestCase):
             code, out = self.run_on(VALID, "--render", "--mmdc", "mmdc", "--png", str(png_dir))
         self.assertEqual(code, 0, out)
         self.assertEqual([p.name for p in png_dir.iterdir()], ["doc-4.png"])
+        self.assertIn("render: 1 of 1 diagram(s) rendered", out)
+        self.assertIn(f"png: {png_dir / 'doc-4.png'}", out)
+
+    def test_png_left_by_an_earlier_run_is_flagged_not_shown_as_current(self):
+        def fake_run(cmd, **kwargs):
+            Path(cmd[cmd.index("-o") + 1]).write_text("<svg/>")
+            return mock.Mock(returncode=0, stderr="", stdout="")
+        png_dir = self.root / "png"
+        png_dir.mkdir()
+        (png_dir / "doc-40.png").write_text("old")
+        (png_dir / "other-3.png").write_text("not ours")
+        with mock.patch.object(validate_diagrams.subprocess, "run", side_effect=fake_run):
+            code, out = self.run_on(VALID, "--render", "--mmdc", "mmdc", "--png", str(png_dir))
+        self.assertEqual(code, 0, out)
+        self.assertIn("doc-40.png:0: warning: PNG from an earlier run", out)
+        self.assertNotIn("other-3.png", out)
 
     def test_render_failure_is_an_error(self):
         def fake_run(cmd, **kwargs):

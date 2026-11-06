@@ -51,7 +51,7 @@ The shape carries the kind; do not repeat it in the label (`db[(PostgreSQL)]`, n
 | Syntax | Means |
 |---|---|
 | `a --> b` | call, data, or control flow (default) |
-| `a -.-> b` | asynchronous, optional, or "happens later" |
+| `a -.-> b` | asynchronous, optional, "happens later", or out to another process or machine |
 | `a ==> b` | the path the figure is about — at most one |
 | `a -->|"label"| b` | the event or condition, in the domain's words |
 
