@@ -26,12 +26,14 @@ Consequence: for small and medium projects, **the number of jobs dominates the b
 | `macos-15` / `macos-26` (M1) | 3 / 7 GB | same | $0.062 | only when you ship to Apple platforms; keep to one cell |
 | larger runners | 2–96 vCPU | — | from $0.006 | long CPU-bound builds where wall-clock time costs more than money |
 
-- **Pin the image** (`ubuntu-24.04`, not `ubuntu-latest`). `ubuntu-latest` moves to Ubuntu 26.04 gradually between 2026-10-19 and 2026-11-19, and `macos-latest` moved to macOS 26 in mid-2026. A label that moves under you breaks toolchains on a random day.
+- **Pin the image** (`ubuntu-24.04`, not `ubuntu-latest`). `ubuntu-latest` is moving to Ubuntu 26.04 gradually between 2026-10-19 and 2026-11-19 ([changelog](https://github.blog/changelog/2026-09-17-ubuntu-26-generally-available-and-latest-migration)), so a run may land on either image during that window, and `macos-latest` moved to macOS 26 in mid-2026. A label that moves under you breaks toolchains on a random day.
 - Private-repo standard runners have **2 vCPU**. Parallel test runners (`-j`, `--workers`, parallel steps) beyond 2 just contend for CPU there.
 - `ubuntu-slim` has a hard 15-minute limit, a minimal tool set, and runs as an **unprivileged container**: no Docker, no mounts. Don't run builds on it.
 - A larger runner can be **cheaper** for a CPU-bound build: 4× the cores at 2× the price is a win if the build scales. Measure before you switch.
 
 ## 3. Don't run what didn't change
+
+First decide **which event runs which job**: release builds, packaging and the OS matrix belong on tags, `main` or nightly, not on every PR push. Count the runs per trigger before tuning minutes. See `references/triggers.md`.
 
 - **`concurrency`**: cancel superseded PR runs, but not runs on main:
   ```yaml
@@ -93,7 +95,7 @@ Consequence: for small and medium projects, **the number of jobs dominates the b
 - Build once, then pass the output to the following jobs with `upload-artifact`/`download-artifact` instead of rebuilding.
 - Skip `setup-*` for tools already on the runner image (git, jq, gh, docker, rustup/cargo, python3, a Node LTS). Check the image readme (`actions/runner-images`) and zizmor `superfluous-actions`. Keep the setup action when you need a **specific** version or its built-in cache.
 - Install with the lockfile and no extras: `npm ci --no-audit --no-fund`, `uv sync --locked`, `cargo … --locked`, `go mod download` only if not using setup-go's cache.
-- Don't build release binaries on every PR unless you ship them from the PR.
+- Don't build release binaries on every PR unless you ship them from the PR: `references/triggers.md` §1 and `examples/binary-app.md`.
 - Artifacts: `retention-days: 1–7` for CI outputs (the default follows the repo setting, often 90), and `compression-level: 0` for already-compressed files (images, tarballs, zips). Artifact storage beyond the plan's quota is billed.
 
 ## 8. Report what you measured

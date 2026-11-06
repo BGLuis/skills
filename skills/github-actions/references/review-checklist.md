@@ -27,10 +27,12 @@ Severity: 🔴 security/correctness · 🟠 cost/speed · 🟡 maintainability.
 | 17 | Full matrix (versions × OS) on every PR; macOS/Windows cells without need | 🟠 | manual |
 | 18 | `fetch-depth: 0` without `filter:`; full checkout for a monorepo package | 🟠 | step time |
 | 19 | Setup actions or installs for tools already on the image; `pip install uv` per job | 🟠 | zizmor `superfluous-actions` |
-| 20 | Heavy jobs on `ubuntu-latest` (moves to 26.04 in Oct–Nov 2026) or unpinned images | 🟡 | manual |
+| 20 | Heavy jobs on `ubuntu-latest` (moving to 26.04, 2026-10-19 to 2026-11-19) or unpinned images | 🟡 | manual |
 | 21 | Artifacts with default retention (often 90 days) for CI-only outputs | 🟡 | manual |
 | 22 | Permissions without a comment explaining why; jobs/workflows without `name:` | 🟡 | zizmor pedantic |
 | 23 | No Dependabot/Renovate for `github-actions` (SHA pins rot) | 🟡 | zizmor `dependabot-cooldown` |
+| 24 | Release-profile builds, signing, packaging, publishing or macOS/Windows cells on `pull_request`, or on every push/`workflow_run` of a branch when nobody consumes a build per commit | 🟠 | trigger × job table (`references/triggers.md` §5) |
+| 25 | `on: [push, pull_request]` (or `push` without `branches:`): every same-repo PR commit runs twice | 🟠 | manual |
 
 ## 2. Commands
 
@@ -40,9 +42,9 @@ docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:1.7.12 -color
 
 # Security audit. --offline skips network audits; add --gh-token for impostor-commit,
 # known-vulnerable-actions, stale-action-refs. --persona=pedantic for review-level noise.
-docker run --rm -v "$PWD":/repo -w /repo ghcr.io/zizmorcore/zizmor:1.30.1 --offline .github/workflows
+docker run --rm -v "$PWD":/repo -w /repo ghcr.io/zizmorcore/zizmor:1.32.0 --offline .github/workflows
 docker run --rm -e GH_TOKEN="$(gh auth token)" -v "$PWD":/repo -w /repo \
-  ghcr.io/zizmorcore/zizmor:1.30.1 --persona=pedantic .github/workflows
+  ghcr.io/zizmorcore/zizmor:1.32.0 --persona=pedantic .github/workflows
 
 # Pins
 pinact run --check
@@ -77,6 +79,7 @@ Measure a **cold** run (after `gh cache delete --all -R $R`), a **warm** run (ca
 ## 3. Report format
 
 1. 🔴 findings, each with the line, the attack or failure it enables, and the fix.
-2. Cost/speed: a table with before → after for wall-clock, billable minutes and the dominant step, **measured** when you could run it and marked *estimated* otherwise.
-3. The single highest-impact change, if the user only does one thing.
-4. What you could not verify (secret names, branch protection settings, required checks, org policies).
+2. For projects that build binaries or packages, or with several triggers: the trigger × job table from `references/triggers.md` §5 (runs/month × billable minutes × multiplier), and the row with the most minutes per month.
+3. Cost/speed: a table with before → after for wall-clock, billable minutes and the dominant step, **measured** when you could run it and marked *estimated* otherwise.
+4. The single highest-impact change, if the user only does one thing.
+5. What you could not verify (secret names, branch protection settings, required checks, org policies).

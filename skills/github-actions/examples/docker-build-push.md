@@ -59,7 +59,7 @@ jobs:
             type=semver,pattern={{version}}
             type=ref,event=branch
       - if: github.event_name != 'pull_request'
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -72,8 +72,9 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=app
-          # Only main writes the cache; PRs and tags read it.
+          # Tags are releases: they never restore a cache. PRs read main's cache.
+          cache-from: ${{ github.ref_type != 'tag' && 'type=gha,scope=app' || '' }}
+          # Only main writes the cache.
           cache-to: ${{ github.ref == 'refs/heads/main' && 'type=gha,scope=app,mode=max,ignore-error=true' || '' }}
       - if: github.event_name != 'pull_request'
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
@@ -87,5 +88,5 @@ jobs:
 - `packages: write`, `id-token: write` and `attestations: write` are granted to the one job that needs them. If PRs from forks matter, move the push into a separate job with `if: github.event_name != 'pull_request'`, so the PR job runs with `contents: read` only.
 - `scope=app`: give each image its own scope, or two images overwrite each other's cache.
 - `ignore-error=true`: a cache-export failure must not fail a good build. Measured: under `cache-mode: read` (or on any read-only trigger), the export **fails the whole build** with `error writing layer blob: failed to reserve cache` unless `ignore-error=true` is set. `actions/cache` only warns in that situation.
-- Tags are pushed from the same workflow and read main's cache. Release builds that must not reuse any cache can set `no-cache: true`, at the cost of the full cold time.
+- **Tag builds restore no cache** (`cache-from` is empty on tags), because a release must not be built from layers that another run wrote (`references/security.md` §3). They pay the full cold time (about 62 s in the table above), only once per release. If releases get their own workflow, put `cache-mode: none` on its job instead.
 - `ghcr.io/${{ github.repository }}` must be lowercase. With an uppercase owner, use `metadata-action` output or lowercase it in a step.
