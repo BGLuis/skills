@@ -17,6 +17,7 @@ CORE_SKILLS=(
   "resolve-issues"
   "resolve-pull-requests"
   "review-pull-requests"
+  "technical-diagrams"
   "technical-issues"
   "technical-report"
   "testing-strategy"
@@ -38,10 +39,11 @@ RESET="\033[0m"
 # porque o bash 3.2 do macOS não tem `declare -A`.
 skill_deps() {
   case "$1" in
-    technical-issues) echo "technical-report" ;;
-    resolve-issues) echo "technical-report" ;;
-    resolve-pull-requests) echo "technical-report resolve-issues" ;;
-    review-pull-requests) echo "technical-report resolve-issues" ;;
+    technical-report) echo "technical-diagrams" ;;
+    technical-issues) echo "technical-report technical-diagrams" ;;
+    resolve-issues) echo "technical-report technical-diagrams" ;;
+    resolve-pull-requests) echo "technical-report technical-diagrams resolve-issues" ;;
+    review-pull-requests) echo "technical-report technical-diagrams resolve-issues" ;;
   esac
 }
 
@@ -59,7 +61,7 @@ Uso:
   curl -fsSL https://raw.githubusercontent.com/BGLuis/skills/main/install.sh | bash -s -- [OPÇÕES]
 
 Opções:
-  --all             Instala todas as 14 skills autorais @BGLuis (padrão)
+  --all             Instala todas as 15 skills autorais @BGLuis (padrão)
   --skill <nome>    Instala apenas uma skill específica
   --agent <nome>    Alvo específico: gemini, claude, copilot, cursor ou all (padrão: auto-detect)
   --copy            Copia arquivos em vez de criar links simbólicos (symlinks)
