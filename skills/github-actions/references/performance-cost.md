@@ -33,6 +33,8 @@ Consequence: for small and medium projects, **the number of jobs dominates the b
 
 ## 3. Don't run what didn't change
 
+First decide **which event runs which job**: release builds, packaging and the OS matrix belong on tags, `main` or nightly, not on every PR push. Count the runs per trigger before tuning minutes. See `references/triggers.md`.
+
 - **`concurrency`**: cancel superseded PR runs, but not runs on main:
   ```yaml
   concurrency:
@@ -93,7 +95,7 @@ Consequence: for small and medium projects, **the number of jobs dominates the b
 - Build once, then pass the output to the following jobs with `upload-artifact`/`download-artifact` instead of rebuilding.
 - Skip `setup-*` for tools already on the runner image (git, jq, gh, docker, rustup/cargo, python3, a Node LTS). Check the image readme (`actions/runner-images`) and zizmor `superfluous-actions`. Keep the setup action when you need a **specific** version or its built-in cache.
 - Install with the lockfile and no extras: `npm ci --no-audit --no-fund`, `uv sync --locked`, `cargo … --locked`, `go mod download` only if not using setup-go's cache.
-- Don't build release binaries on every PR unless you ship them from the PR.
+- Don't build release binaries on every PR unless you ship them from the PR: `references/triggers.md` §1 and `examples/binary-app.md`.
 - Artifacts: `retention-days: 1–7` for CI outputs (the default follows the repo setting, often 90), and `compression-level: 0` for already-compressed files (images, tarballs, zips). Artifact storage beyond the plan's quota is billed.
 
 ## 8. Report what you measured

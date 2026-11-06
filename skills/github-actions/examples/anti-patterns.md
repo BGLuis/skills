@@ -26,6 +26,8 @@ Never produce these. Each one comes with what it costs and the fix. The "Detecte
 | 20 | `runs-on: ubuntu-latest` for toolchain-sensitive builds | image changes under you (→ 26.04, rolled out 2026-10-19 to 2026-11-19) | `ubuntu-24.04` | manual |
 | 21 | `if: github.actor == 'dependabot[bot]'` to grant privileges | spoofable in some flows | check `github.event.pull_request.user.login` and the event | zizmor `bot-conditions` |
 | 22 | Self-hosted runner on a public repo | any fork PR runs code on your machine | GitHub-hosted runners; self-hosted only for private repos with ephemeral runners | zizmor `self-hosted-runner` |
+| 23 | Release build / signing / installers for every OS in a workflow triggered by `pull_request` or by every push to `main` | the most expensive job × the most frequent event: a 12-min macOS build on 100 PR pushes ≈ 12,000 Linux-equivalent minutes/month, and it holds 1 of the 5 concurrent macOS slots (Free plan) | cheap debug build on PRs, release matrix on tags/dispatch, opt-in label preview (`binary-app.md`) | trigger × job table (`references/triggers.md` §5) |
+| 24 | `on: [push, pull_request]` without branch filters | every same-repo PR commit runs twice | `push: branches: [main]` + `pull_request:` | manual |
 
 ## The naive workflow the bench started from
 
