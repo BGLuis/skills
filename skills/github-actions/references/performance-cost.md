@@ -26,7 +26,7 @@ Consequence: for small and medium projects, **the number of jobs dominates the b
 | `macos-15` / `macos-26` (M1) | 3 / 7 GB | same | $0.062 | only when you ship to Apple platforms; keep to one cell |
 | larger runners | 2–96 vCPU | — | from $0.006 | long CPU-bound builds where wall-clock time costs more than money |
 
-- **Pin the image** (`ubuntu-24.04`, not `ubuntu-latest`). `ubuntu-latest` is moving to Ubuntu 26.04 gradually between 2026-10-19 and 2026-11-19 ([changelog](https://github.blog/changelog/2026-09-17-ubuntu-26-generally-available-and-latest-migration)), so a run may land on either image during that window, and `macos-latest` moved to macOS 26 in mid-2026. A label that moves under you breaks toolchains on a random day.
+- **Pin the image** (`ubuntu-24.04`, not `ubuntu-latest`). `ubuntu-latest` went from 24.04 to 26.04 in a gradual rollout (2026-10-19 → 2026-11-19, [changelog](https://github.blog/changelog/2026-09-17-ubuntu-26-generally-available-and-latest-migration)) during which a run could land on either image, and `macos-latest` moved to macOS 26 in mid-2026. A label that moves under you breaks toolchains on a random day. Which versioned label to pin: `references/versions.md`.
 - Private-repo standard runners have **2 vCPU**. Parallel test runners (`-j`, `--workers`, parallel steps) beyond 2 just contend for CPU there.
 - `ubuntu-slim` has a hard 15-minute limit, a minimal tool set, and runs as an **unprivileged container**: no Docker, no mounts. Don't run builds on it.
 - A larger runner can be **cheaper** for a CPU-bound build: 4× the cores at 2× the price is a win if the build scales. Measure before you switch.
@@ -47,7 +47,7 @@ First decide **which event runs which job**: release builds, packaging and the O
   - job-level gating: a cheap `changes` job on `ubuntu-slim` with `dorny/paths-filter` (on PRs it uses the API and needs no checkout), `if:` on the expensive jobs, and **one aggregate job with `if: always()` that is the only required check**. See `examples/monorepo-paths-filter.md`.
 - `paths-ignore: ['**.md', 'docs/**']` on test workflows only if they are not required checks.
 - `merge_group` (merge queue): run the full or expensive suite once per batch in the queue, and a fast subset on `pull_request`. setup-uv skips cache saving on `merge_group`, because those caches can't be read later anyway.
-- `schedule:` workflows on forks and inactive repos burn minutes. Add `if: github.repository == 'owner/repo'`.
+- `schedule:` workflows on forks and inactive repos burn minutes. Add `if: github.repository == 'owner/repo'`. Cron runs in UTC unless the entry sets `timezone:` (an IANA name).
 
 ## 4. Order jobs so failures are cheap
 
@@ -79,7 +79,7 @@ First decide **which event runs which job**: release builds, packaging and the O
       - run: npm test
   - run: npm run build
   ```
-  This helps when the steps are I/O-bound or single-threaded (linters, type checkers). CPU-bound steps on a 2-vCPU private runner just share the same two cores. actionlint 1.7.12 does not know this syntax yet and reports `step must run script with "run" section`; that's a false positive.
+  This helps when the steps are I/O-bound or single-threaded (linters, type checkers). CPU-bound steps on a 2-vCPU private runner just share the same two cores. actionlint 1.7.12 does not know this syntax yet and reports `step must run script with "run" section`; that's a false positive. It also means **nothing inside the group is linted** (expressions, shellcheck, untrusted input), and zizmor's support is experimental: keep each parallel step to a one-line command with no `${{ }}`.
 - Test runners: `-j$(nproc)` / `--workers=auto` / `pytest -n auto` (pytest-xdist) / `go test` (parallel by default) / `cargo nextest`.
 - **Sharding** across jobs only for long suites (> ~5 min). Each shard pays the setup cost and minute rounding again:
   ```yaml
@@ -100,4 +100,4 @@ First decide **which event runs which job**: release builds, packaging and the O
 
 ## 8. Report what you measured
 
-When optimizing, report for the before and after: **wall-clock time** (created → completed), **the sum of job durations**, **billable minutes** (the sum of per-job rounded-up minutes, times the runner multiplier), and the step that dominates. Use the commands in `references/review-checklist.md` §2.
+When optimizing, report for the before and after: **wall-clock time** (created → completed), **the sum of job durations**, **billable minutes** (the sum of per-job rounded-up minutes, times the runner multiplier), and the step that dominates. `scripts/billable_minutes.py` computes all four from run ids (`references/review-checklist.md` §2).

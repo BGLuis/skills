@@ -7,7 +7,7 @@ Never produce these. Each one comes with what it costs and the fix. The "Detecte
 | 1 | `run: echo "${{ github.event.pull_request.title }}"` | command injection | pass it through `env:`, reference `"$TITLE"` | zizmor `template-injection` |
 | 2 | `pull_request_target` + checkout of `github.event.pull_request.head.sha` | repo takeover (secrets, write token) | `pull_request` + `workflow_run` split (`pr-privileged-split.md`) | zizmor `dangerous-triggers`, Scorecard |
 | 3 | No `permissions:` block | default token may be read/write on everything | `permissions: {}` + per-job grants | zizmor `excessive-permissions` |
-| 4 | `uses: some/action@v2` | mutable tag, supply chain (tj-actions, 2025) | full SHA + `# vX.Y.Z` + Dependabot cooldown | zizmor `unpinned-uses` |
+| 4 | `uses: some/action@v2` | mutable tag, supply chain (tj-actions, 2025) | full SHA + `# vX.Y.Z` + Dependabot cooldown, and a workflow lockfile where available | zizmor `unpinned-uses` |
 | 5 | Checkout with default `persist-credentials` + `upload-artifact` of the workspace | token leaks in the artifact | `persist-credentials: false`, upload only build outputs | zizmor `artipacked` |
 | 6 | `secrets: inherit` / `${{ toJSON(secrets) }}` | every secret exposed to the callee or logs | pass named secrets | zizmor `secrets-inherit`, `overprovisioned-secrets` |
 | 7 | `AWS_SECRET_ACCESS_KEY` in repo secrets | long-lived key, broad blast radius | OIDC role + `id-token: write` on one job | manual |
@@ -23,11 +23,14 @@ Never produce these. Each one comes with what it costs and the fix. The "Detecte
 | 17 | `actions/cache` saving on every PR | PR-scoped caches nobody can reuse, evicting main's | save only on the default branch | `gh cache list` |
 | 18 | `actions/checkout@v4`, `actions/cache@v4`, `setup-node@v4` | Node 20 runtime deprecated. The runner forces them onto Node 24 with a warning, an untested combination | current majors (`references/versions.md`) | run log: `being forced to run on Node.js 24` |
 | 19 | QEMU (`setup-qemu-action`) for multi-arch when the language cross-compiles | every `RUN` emulated, several times slower | `FROM --platform=$BUILDPLATFORM` + `GOOS/GOARCH`, or native `ubuntu-24.04-arm` | measure (`docker-build-push.md`) |
-| 20 | `runs-on: ubuntu-latest` for toolchain-sensitive builds | image changes under you (→ 26.04, rolled out 2026-10-19 to 2026-11-19) | `ubuntu-24.04` | manual |
+| 20 | `runs-on: ubuntu-latest` for toolchain-sensitive builds | image changes under you (24.04 → 26.04, rolled out 2026-10-19 to 2026-11-19) | a versioned label (`references/versions.md`) | manual |
 | 21 | `if: github.actor == 'dependabot[bot]'` to grant privileges | spoofable in some flows | check `github.event.pull_request.user.login` and the event | zizmor `bot-conditions` |
 | 22 | Self-hosted runner on a public repo | any fork PR runs code on your machine | GitHub-hosted runners; self-hosted only for private repos with ephemeral runners | zizmor `self-hosted-runner` |
 | 23 | Release build / signing / installers for every OS in a workflow triggered by `pull_request` or by every push to `main` | the most expensive job × the most frequent event: a 12-min macOS build on 100 PR pushes ≈ 12,000 Linux-equivalent minutes/month, and it holds 1 of the 5 concurrent macOS slots (Free plan) | cheap debug build on PRs, release matrix on tags/dispatch, opt-in label preview (`binary-app.md`) | trigger × job table (`references/triggers.md` §5) |
 | 24 | `on: [push, pull_request]` without branch filters | every same-repo PR commit runs twice | `push: branches: [main]` + `pull_request:` | manual |
+| 25 | `id-token: write` on the job that runs `cargo build` / `uv build` / `npm run build` | build scripts and plugins of dependencies can mint the token that signs provenance or assumes the cloud role | build with `contents: read`, sign or deploy in a second job that downloads the artifact (`release-oidc.md`) | manual |
+| 26 | Workflow-level `cancel-in-progress: true` on a workflow whose jobs are gated by `if:` on a label or comment | a run that will skip every job still cancels the one doing the work | make `cancel-in-progress` an expression with the same condition (`binary-app.md`) | manual |
+| 27 | One job with `packages: write` / `id-token: write` for both `pull_request` and `push` | every same-repo PR runs with publishing rights | one read-only job for PRs, one publishing job for the other events (`docker-build-push.md`) | zizmor `excessive-permissions` (partial) |
 
 ## The naive workflow the bench started from
 

@@ -44,11 +44,11 @@ Built-in caches key on the lockfile and cache the **download cache**, not `node_
 
 | Stack | Action and input | Default | Key |
 |---|---|---|---|
-| npm | `setup-node` `cache: npm` | **auto-on only** when `package.json` at the root has `packageManager: npm@…`. Otherwise off | `package-lock.json` |
+| npm | `setup-node` `cache: npm` | **auto-on only** when `package.json` at the root names npm in `packageManager` or `devEngines.packageManager`. Otherwise off | `package-lock.json` |
 | pnpm | `pnpm/action-setup` `cache: true`, **or** `setup-node` `cache: pnpm` (not both) | off | `pnpm-lock.yaml` |
 | yarn | `setup-node` `cache: yarn` | off | `yarn.lock` |
 | bun | `oven-sh/setup-bun` | **on** (`no-cache: false`) | `bun.lock` |
-| uv | `astral-sh/setup-uv` `enable-cache: true` + `prune-cache: true` | `auto`: on for hosted runners, **off** on release/tag/`pull_request_target`/`workflow_run` | `uv.lock`, `pyproject.toml`, requirements files |
+| uv | `astral-sh/setup-uv` `prune-cache: true`; leave `enable-cache` on `auto` (`true` only on self-hosted runners) | `auto`: on for hosted runners, **off** on release/tag/`pull_request_target`/`workflow_run`. An explicit `true` overrides that guard | `uv.lock`, `pyproject.toml`, requirements files |
 | pip / poetry / pipenv | `setup-python` `cache: pip` | off | requirements / `poetry.lock` |
 | Go | `setup-go` | **on** | `go.mod`/`go.sum` **at the repo root** |
 | Java | `setup-java` `cache: maven\|gradle\|sbt` + `cache-read-only` | off | build files |

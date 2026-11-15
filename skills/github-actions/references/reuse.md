@@ -37,7 +37,7 @@ steps:
 ```
 
 - Every `run:` in a composite action needs an explicit `shell:`.
-- `./path` needs the repo checked out first. **`uses: $/.github/actions/setup-node-deps`** (2026-07, runner ≥ 2.336.0) resolves the action at the exact commit that is running, **without a checkout**, and satisfies an org "require SHA pinning" policy. Plain `./` counts as unpinned under that policy. zizmor `self-repository` suggests the `$/` form.
+- `./path` needs the repo checked out first. **`uses: $/.github/actions/setup-node-deps`** (2026-07, runner ≥ 2.336.0) resolves the action at the exact commit that is running, **without a checkout**, and satisfies an org "require SHA pinning" policy. Plain `./` counts as unpinned under that policy. zizmor `self-repository` suggests the `$/` form. A workflow lockfile can't lock a `./` action either: `gh actions-lock --migrate-local-actions` rewrites them to `$/` (`references/security.md` §4). `$/` is not available on GHES.
 - Composite actions can't use `parallel:` or `background:` steps internally, but a composite action can itself run as a background step.
 
 ## Reusable workflow

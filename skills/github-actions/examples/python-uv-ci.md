@@ -14,7 +14,7 @@ Format: wall-clock / Σ job time / billable minutes.
 ## Why it looks like this
 
 1. **`astral-sh/setup-uv` replaces `setup-python` + `pip install uv`.** It installs a checksummed uv binary. `uv sync` then installs the interpreter from `.python-version` itself, and `cache-python: true` caches it. `setup-python` becomes a superfluous action.
-2. **`enable-cache: true` + `prune-cache: true`.** uv's cache is keyed on `uv.lock`. `prune-cache` runs `uv cache prune --ci` before saving: it drops the wheels that were only downloaded (fast to fetch again) and keeps the ones built from source (slow to rebuild). That keeps the cache small, so the restore stays cheap.
+2. **The cache stays on `enable-cache: auto` (the default), plus `prune-cache: true`.** `auto` turns the cache on for GitHub-hosted runners and off on the events of item 5. Writing `true` would force it on there as well, the day someone adds a tag trigger to this file. Set `true` only on self-hosted runners, where `auto` means off. uv's cache is keyed on `uv.lock`. `prune-cache` runs `uv cache prune --ci` before saving: it drops the wheels that were only downloaded (fast to fetch again) and keeps the ones built from source (slow to rebuild). That keeps the cache small, so the restore stays cheap.
 3. **`uv sync --locked`** fails if `uv.lock` is out of date with `pyproject.toml`, instead of silently re-resolving in CI.
 4. **One job.** Three jobs of 10–15 s bill 3 minutes. One job with the same checks bills 1. On main, add the 3.14 cell with a matrix expression as in `node-ci.md` if you support several versions.
 5. On `release`, tag-push, `pull_request_target` and `workflow_run` events, setup-uv v10 **turns its cache off automatically** (cache poisoning). On `merge_group` it restores but doesn't save.
@@ -47,7 +47,6 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
-          enable-cache: true
           prune-cache: true
           cache-python: true
       - run: uv sync --locked
@@ -56,6 +55,6 @@ jobs:
       - run: uv run pytest -q
 ```
 
-- Subdirectory project: set `working-directory: <dir>` on setup-uv (so it finds `.python-version` and `uv.lock`), `cache-dependency-glob: <dir>/uv.lock`, and `defaults.run.working-directory`. The bench workflow (`python-opt.yml`) is this file with those changes and without the format check.
+- Subdirectory project: set `working-directory: <dir>` on setup-uv (so it finds `.python-version` and `uv.lock`), `cache-dependency-glob: <dir>/uv.lock`, and `defaults.run.working-directory`. The bench workflow (`python-opt.yml`) is this file with those changes, without the format check, and with an explicit `enable-cache: true`, which is what `auto` resolves to on these events.
 - Slow test suite: `uv add --dev pytest-xdist` and `pytest -n auto` use every vCPU (4 on public runners, 2 on private). Shard across jobs only when the suite runs for several minutes.
 - Poetry or pip projects without uv: `setup-python` with `cache: poetry|pip` and `cache-dependency-path`.
