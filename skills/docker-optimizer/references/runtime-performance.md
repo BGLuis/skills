@@ -6,14 +6,14 @@ The goal is to use the **smallest** CPU and memory limit that holds the load wit
 
 ```bash
 docker stats --no-stream                        # real CPU% and MEM of each container
-docker run --cpus=1 -m 256m ...                 # reproduce the production limit locally
+docker run --cpus=1 -m 256m --memory-swap 256m ...   # reproduce the production limit locally (no swap)
 docker inspect -f '{{.State.OOMKilled}}' <ctr>  # was it an OOM kill?
 cat /sys/fs/cgroup/cpu.stat                     # inside the container: nr_throttled / throttled_usec
 ```
 
 Sizing loop: start at `idle RSS × 2` for memory and `1` CPU. Run a load test (k6, wrk, hey), watch `nr_throttled` and p99 latency, and raise the limit only when the metrics call for it.
 
-- **Memory limit** = hard limit. Going over means an OOM kill (exit 137, `OOMKilled: true`). Leave 20–30% headroom above the peak.
+- **Memory limit** = hard limit. Going over means an OOM kill (exit 137, `OOMKilled: true`). Leave 20–30% headroom above the peak. On a host with swap, the limit alone also grants the same amount of swap (measured: `-m 256m` → `memory.swap.max` = 256 MB), so the process slows down swapping instead of being killed, and a local test doesn't reproduce a host without swap. Set `--memory-swap` (compose: `memswap_limit`) equal to the memory limit.
 - **Memory reservation** = soft limit, used for scheduling and reclaim under host pressure. Set it to the typical usage.
 - **CPU (`cpus: 0.5`)** = CFS quota. Going over doesn't kill the process, it **throttles** it. For latency-sensitive workloads, throttling hurts more than it seems: a GC that uses 8 threads burns a 1-CPU quota in 12 ms and freezes the process for the rest of the 100 ms period.
 - **`pids_limit`** protects against fork bombs and thread leaks (e.g. 256–512 for a normal service).
@@ -22,10 +22,10 @@ Sizing loop: start at `idle RSS × 2` for memory and `1` CPU. Run a load test (k
 
 | Runtime | CPU | Memory | Required action |
 |---|---|---|---|
-| **Go ≥ 1.25** | Yes: `GOMAXPROCS` = CPU limit (**floor of 2**: `--cpus=1` → 2) | No: the GC doesn't know the limit | `GOMEMLIMIT` ≈ 90% of the limit. `GOMAXPROCS=1` if the limit is 1 CPU. Go < 1.25: set `GOMAXPROCS` or use `automaxprocs` |
+| **Go ≥ 1.25** | Yes: `GOMAXPROCS` = CPU limit (**floor of 2**: `--cpus=1` → 2) | No: the GC doesn't know the limit | `GOMEMLIMIT` ≈ 90% of the limit. Below 2 CPUs `GOMAXPROCS` stays at 2 (`--cpus=0.5` → 2): see §3 before forcing 1. Go < 1.25: set `GOMAXPROCS` or use `automaxprocs` |
 | **Rust (tokio)** | Yes: `available_parallelism()` = limit (`--cpus=2` → 2) | n/a (no GC) | None. Watch the allocator with musl |
-| **Node.js 24** | n/a (1 JS thread; libuv pool = 4) | **Partially**: the heap follows the limit **without headroom** (`-m 256m` → heap limit 259 MB) | `NODE_OPTIONS=--max-old-space-size=<75% of the limit>`. `UV_THREADPOOL_SIZE` only if you do a lot of fs/crypto/dns |
-| **Python** | **No**: `os.cpu_count()` = host cores (16 with `--cpus=2`) | No | Set `--workers` explicitly. Never compute workers from `cpu_count()` inside the container |
+| **Node.js 24** | n/a (1 JS thread; libuv pool = 4) | **Partially**: the default heap is about half the limit, with a floor of ~259 MB and a cap of ~2.2 GB (`-m 256m` and `-m 512m` → 259 MB, `-m 1g` → 560 MB, `-m 8g` → 2240 MB) | `NODE_OPTIONS=--max-old-space-size-percentage=75` (`-m 512m` → 387 MB on 22.23 and 24.22), or `--max-old-space-size=<75% of the limit in MB>` on a release without that flag. `UV_THREADPOOL_SIZE` only if you do a lot of fs/crypto/dns |
+| **Python** | **No**: `os.cpu_count()` = host cores (16 with `--cpus=2`) | No | Set `--workers` explicitly. Never compute workers from `cpu_count()` inside the container. For libraries that size their own pools from it, `PYTHON_CPU_COUNT=<limit>` (3.13+) makes `os.cpu_count()` return that value (measured: 16 → 2) |
 | **Java ≥ 17** | Yes: `availableProcessors()` follows the CPU limit | Yes, but the default heap is **25%** of the limit | `-XX:MaxRAMPercentage=75`. See §3 |
 
 ## 3. Per-language tuning
@@ -33,14 +33,17 @@ Sizing loop: start at `idle RSS × 2` for memory and `1` CPU. Run a load test (k
 ### Go
 ```dockerfile
 ENV GOMEMLIMIT=460MiB   # for memory: 512M
-# GOMAXPROCS is automatic (1.25+); set it explicitly only for limits < 2 CPUs
+# GOMAXPROCS is automatic (1.25+), with a floor of 2
 ```
+With a limit below 2 CPUs the runtime still runs 2 threads. `GOMAXPROCS=1` removes that mismatch, but then the GC shares the only thread with the application. Force it only if `nr_throttled` keeps growing under load, and compare p99 before and after.
+
 Static binary + distroless/static: idle RSS measured at 4.8 MiB. Go is the best language for "minimal resources".
 
 ### Node.js
 ```dockerfile
-ENV NODE_OPTIONS="--max-old-space-size=384"   # for memory: 512M
+ENV NODE_OPTIONS="--max-old-space-size-percentage=75"   # 75% of the container limit, whatever it is
 ```
+- On a Node release without that flag, use megabytes: `--max-old-space-size=384` for `memory: 512M`.
 - 1 process per container, and scale horizontally through replicas. Avoid `cluster`/PM2 inside the container (it duplicates what the orchestrator already does, and the heap limit is per process).
 - A handler for `SIGTERM`, or `init: true` (without it `docker stop` waits 10 s and SIGKILLs).
 

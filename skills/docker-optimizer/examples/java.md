@@ -72,12 +72,17 @@ ENTRYPOINT ["java", "-jar", "app.jar"]
 
 ```
 .git
+.env*
 target
 .idea
 *.iml
 Dockerfile*
 .dockerignore
 ```
+
+`target/app.jar` assumes `<finalName>app</finalName>` in the `<build>` section of `pom.xml`. Maven's default is `<artifactId>-<version>.jar`, and the same name ends up in the `application` layer that `ENTRYPOINT` runs. Set `finalName`, or change the name in every place it appears.
+
+On ephemeral CI (layer cache only), `/root/.m2` in a cache mount leaves the `dependency:go-offline` layer empty, so `package` downloads everything again. There, remove the mount from both `RUN`s. See `references/ci-cache.md` §1.
 
 ## Variant: AOT cache (Java 25, JEP 483/514/515) for fast startup
 

@@ -123,6 +123,6 @@ To whitelist instead, start with `*` and re-include with `!src/`, `!package*.jso
 | full images (`node:24`, `python:3.14`, `golang:1.27`) | 300–600 MB | yes | glibc | **Only in the build stage** |
 
 Rules:
-- Pin a specific **tag** (`node:24.9-trixie-slim`, at least `major.minor`) and, in production, the **digest**: `FROM node:24-trixie-slim@sha256:...`. Get it with `docker buildx imagetools inspect <image> --format '{{json .Manifest.Digest}}'`. Automate updates (Dependabot `package-ecosystem: docker` or Renovate), or the image stops receiving patches.
+- Pin a specific **tag** (`node:24.9-trixie-slim`, at least `major.minor`) and, in production, the **digest**: `FROM node:24-trixie-slim@sha256:...`. Get it with `docker buildx imagetools inspect <image> --format '{{json .Manifest.Digest}}'`. Automate updates (Dependabot `package-ecosystem: docker` or Renovate), or the image stops receiving patches. Tags with no version (`gcr.io/distroless/*:nonroot`, `debian:trixie-slim`) move on every rebuild of the image, so the digest is their only pin.
 - Build with `--pull` in CI so you always start from the most recent patch of the tag.
-- The Debian codename (`trixie`, `bookworm`) should be the same between build and runtime (glibc compatibility).
+- The Debian codename (`trixie`, `bookworm`) should be the same between build and runtime (glibc compatibility) for anything compiled or linked in the build stage: native extensions, cgo, Rust on glibc. Self-contained output is exempt: a static binary, or a jlink JRE assembled from Temurin's prebuilt binaries (`examples/java.md` builds on Ubuntu and runs on Debian).

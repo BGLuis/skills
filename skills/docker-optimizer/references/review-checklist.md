@@ -25,7 +25,7 @@ Severity: 🔴 security/correctness · 🟠 size/performance · 🟡 maintainabi
 | 15 | Missing `# syntax=docker/dockerfile:1`; legacy `ENV key value`; `MAINTAINER` | 🟡 |
 | 16 | No OCI labels (`org.opencontainers.image.source`/`revision`) | 🟡 |
 
-Compose: limits (cpus/memory/pids), hardening (`read_only`, `cap_drop`, `no-new-privileges`), log rotation, `depends_on` with `service_healthy`, `restart`, ports exposed on `0.0.0.0` without need, `docker.sock` mounted, `privileged: true`, secrets in `environment:` in plain text.
+Compose: limits (cpus/memory/pids, `memswap_limit`), hardening (`read_only`, `cap_drop`, `no-new-privileges`), log rotation, `depends_on` with `service_healthy`, `restart`, ports exposed on `0.0.0.0` without need, `docker.sock` mounted, `privileged: true`, secrets in `environment:` in plain text.
 
 ## 2. Measurement commands
 
@@ -34,47 +34,60 @@ Compose: limits (cpus/memory/pids), hardening (`read_only`, `cap_drop`, `no-new-
 docker build --check .
 
 # Size: compressed (pull) vs on disk (unpacked)
-docker image inspect -f '{{.Size}}' app:tag   # bytes; with the containerd store = compressed content
-docker image ls app                            # on-disk usage
+docker image ls app:tag                        # CONTENT SIZE = compressed, DISK USAGE = unpacked (containerd store)
+docker save app:tag | wc -c                    # compressed size in bytes, for scripts (containerd store)
 docker image ls --tree app                     # per platform, for multi-arch images
 
 # Which layers weigh the most, and which instruction created them
 docker history --format '{{.Size}}\t{{.CreatedBy}}' app:tag | sort -rh | head
 
-# Rebuild time after changing only source code (should hit CACHED on dependencies)
-touch src/<file> && time docker build -t app:tag . 2>&1 | grep -E 'CACHED|DONE'
+# Rebuild time after changing only source code (should hit CACHED on dependencies).
+# The content has to change: BuildKit keys the cache on file content, so `touch` leaves everything CACHED.
+printf '\n' >> src/<file> && time docker build -t app:tag . 2>&1 | grep -E 'CACHED|DONE'
+git checkout -- src/<file>
 
 # User and entrypoint
 docker inspect -f 'user={{.Config.User}} entry={{json .Config.Entrypoint}} cmd={{json .Config.Cmd}}' app:tag
 
-# Runtime under the production limit
-docker run -d --name t --cpus=1 -m 256m app:tag
-docker stats --no-stream t
-docker inspect -f '{{.State.Health.Status}} oom={{.State.OOMKilled}}' t
+# Runtime under the production limit. --memory-swap equal to -m: without it the container gets that much swap on top.
+docker run -d --name app-test --cpus=1 -m 256m --memory-swap 256m app:tag
+docker stats --no-stream app-test
+docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}} oom={{.State.OOMKilled}}' app-test
 
 # Graceful stop time (should be < 1 s, exit 0 or 143, never 137)
-s=$(date +%s%N); docker stop t; echo "$(( ($(date +%s%N)-s)/1000000 )) ms"; docker inspect -f '{{.State.ExitCode}}' t
+s=$(date +%s%N); docker stop app-test; echo "$(( ($(date +%s%N)-s)/1000000 )) ms"; docker inspect -f '{{.State.ExitCode}}' app-test
+docker rm app-test
 ```
 
 ### Extra tools
 
+Pin each tool by version and digest, and give it a tar of the image instead of `/var/run/docker.sock` (root on the host). `aquasec/trivy:latest` served malware in March 2026. The versions below were checked in 2026-11: take a newer one from the project's releases and its digest from `docker buildx imagetools inspect`.
+
 ```bash
+docker save app:tag -o app.tar
+
 # Wasted bytes per layer (files overwritten/removed in later layers)
-docker run --rm -v /var/run/docker.sock:/var/run/docker.sock wagoodman/dive:latest app:tag --ci
+docker run --rm -v "$PWD/app.tar:/app.tar:ro" \
+  wagoodman/dive:v0.13.1@sha256:f1886e6c32c094fc41a623c1989f5cb3e48aa766da5f0be233f911fc1d85ce10 \
+  --source docker-archive /app.tar --ci
 
 # HIGH/CRITICAL CVEs
-docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest \
-  image --severity HIGH,CRITICAL --quiet app:tag
+docker run --rm -v "$PWD/app.tar:/app.tar:ro" \
+  aquasec/trivy:0.76.2@sha256:8f6bb947dbc528902e11f2f5be52f7b519f6a39d5d148f41166f2040499768fb \
+  image --input /app.tar --severity HIGH,CRITICAL --quiet
 
 # Lint beyond build checks
-docker run --rm -i hadolint/hadolint < Dockerfile
+docker run --rm -i \
+  hadolint/hadolint:v2.15.1@sha256:32dac94127fd60b7b7e3fbfc65e1383b9b5e25c9bfd7b8536de7a539fe68a12d < Dockerfile
+
+rm app.tar
 ```
 
 Reference values measured (Node app): naive → trivy 483 HIGH/CRIT, dive 8.5 MB wasted. Distroless multi-stage → 0 CVEs, 630 bytes wasted.
 
 **What no tool catches** (verified with build-check + hadolint): missing `USER`, missing `.dockerignore`, a package manager as PID 1 in exec form (`["npm","start"]`), `COPY . .` before installing dependencies, devDependencies in the final image, a single stage with a compiler. Review these by hand, always.
 
-**Size in `docker image ls` vs `inspect`**: with the containerd image store, `image ls` shows the unpacked disk usage and `inspect .Size` shows the compressed content (what gets pulled). Compare apples with apples. In before/after reports, use the compressed size as the main number.
+**Compressed vs on disk**: with the containerd image store, `docker image ls` shows both: CONTENT SIZE is the compressed content (what gets pulled) and DISK USAGE adds the unpacked layers. `docker image inspect -f '{{.Size}}'` is close to the disk usage, not to the compressed size (measured on Engine 29.9 for `alpine:3.20`: 13.07 MB in `inspect`, 3.71 MB of content). On the classic store only the unpacked size is available locally. Compare apples with apples. In before/after reports, use the compressed size as the main number.
 
 ## 3. Report format
 

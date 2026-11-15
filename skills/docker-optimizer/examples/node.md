@@ -31,7 +31,7 @@ process.on("SIGINT", close);
 
 ## Memory (measured on Node 24)
 
-V8 sizes the heap from the cgroup limit, but it does not leave headroom. With `-m 256m`, the heap limit came out as **259 MB**, bigger than the container itself, so the kernel kills the process before the GC reacts. With `-m 1g` it came out as 560 MB. **Always** set `NODE_OPTIONS=--max-old-space-size=<~75% of the limit in MB>`. With 256 MB → `192`, measured heap limit 195 MB.
+V8 sizes the heap from the cgroup limit as about half of it, with a floor of about 259 MB and a cap of about 2.2 GB. With `-m 256m`, the heap limit came out as **259 MB**, bigger than the container itself, so the kernel kills the process before the GC reacts. With `-m 512m` it is still 259 MB, with `-m 1g` 560 MB, and with `-m 8g` 2240 MB, so most of a large limit is never used. **Always** set the heap explicitly: `NODE_OPTIONS=--max-old-space-size-percentage=75` (measured on 22.23 and 24.22, distroless included: `-m 512m` → 387 MB). On a release without that flag, use `--max-old-space-size=<~75% of the limit in MB>`. With 256 MB → `192`, measured heap limit 195 MB.
 
 ## Code
 
@@ -85,7 +85,7 @@ Dockerfile*
 
 ## Variants
 
-- **pnpm**: `RUN corepack enable` in `base`. Cache mount `target=/root/.local/share/pnpm/store`. Use `pnpm install --frozen-lockfile --prod` in `deps`. Plain JavaScript (no build step): drop the `build` stage and copy `src/` from the context.
+- **pnpm**: on Node ≤ 24, `RUN corepack enable` in `base`. Node 25+ no longer ships Corepack: use `RUN npm install -g pnpm@<version from packageManager>` (tested on Node 26). Cache mount `target=/root/.local/share/pnpm/store`. Use `pnpm install --frozen-lockfile --prod` in `deps`.
 - **Plain JavaScript, no build**: `deps` + runtime only. `COPY src ./src`.
 - **Need a shell in production** (entrypoint scripts): use `node:24-trixie-slim` as runtime with `USER node` (UID 1000). It is bigger than distroless, but still has no devDependencies.
 - **Healthcheck**: distroless has no `curl`. Use `HEALTHCHECK CMD ["/nodejs/bin/node", "-e", "fetch('http://127.0.0.1:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]`, or leave the health check to the orchestrator.
