@@ -322,6 +322,57 @@ class ValidateDiagramsTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("%%{init: ...}%%", out)
 
+    def test_state_capitalized_multiline_note_and_er_class_shorthand(self):
+        md = textwrap.dedent("""\
+            ```mermaid
+            stateDiagram-v2
+              accTitle: State note
+              %% @Pending: external
+              %% @Paid: external
+              Pending --> Paid
+              Note right of Pending
+                Pending --> FakeState
+              end note
+            ```
+
+            ```mermaid
+            erDiagram
+              accTitle: ER highlight
+              %% @USER: external
+              %% @ORDER: external
+              classDef changed stroke:#d97706
+              USER:::changed ||--o{ ORDER : places
+            ```
+        """)
+        code, out = self.run_on(md)
+        self.assertEqual(code, 0, out)
+        self.assertEqual(self.errors(out), [])
+
+    def test_subgraph_reserved_word_as_id_and_acctitle_without_colon_fail(self):
+        md = textwrap.dedent("""\
+            ```mermaid
+            flowchart LR
+              accTitle Missing colon
+              %% @subgraph: external
+              %% @b: external
+              subgraph --> b
+            ```
+        """)
+        code, out = self.run_on(md)
+        self.assertEqual(code, 1)
+        self.assertIn("missing `accTitle:`", out)
+        self.assertIn("`subgraph` is a reserved word", out)
+
+    def test_shell_function_keyword_and_python_guarded_definition(self):
+        (self.root / "run.sh").write_text("#!/usr/bin/env bash\nfunction deploy {\n  :\n}\n")
+        (self.root / "src" / "guarded.py").write_text(
+            "if True:\n    def helper():\n        pass\n"
+        )
+        for anchor in ("run.sh#deploy", "src/guarded.py#helper"):
+            md = VALID.replace("src/api.py#SELECT", anchor)
+            code, out = self.run_on(md, "--repo-root", str(self.root))
+            self.assertEqual(code, 0, f"{anchor}: {out}")
+
 
 if __name__ == "__main__":
     unittest.main()

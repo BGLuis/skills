@@ -201,7 +201,7 @@ def parse_flowchart(body):
             continue
         if line == "end" or line == "}":
             continue
-        if re.match(r"subgraph\b", line):
+        if re.match(r'subgraph\s+(?=[\w"])', line):
             m = re.match(r"subgraph\s+([\w-]+)", line)
             if m:
                 subgraphs.add(m.group(1))
@@ -248,9 +248,9 @@ def parse_state(body):
     for n, raw in body:
         line = raw.strip()
         if in_note:
-            in_note = line != "end note"
+            in_note = line.lower() != "end note"
             continue
-        if line.startswith("note ") and ":" not in line:
+        if line.lower().startswith("note ") and ":" not in line:
             in_note = True
             continue
         m = STATE_ALIAS.match(line) or STATE_DECL.match(line)
@@ -270,7 +270,7 @@ def parse_state(body):
     return graph
 
 
-ER_REL = re.compile(r'^([\w-]+)\s+\S+(?:--|\.\.)\S+\s+([\w-]+)\s*:')
+ER_REL = re.compile(r'^([\w-]+)(?::::[\w-]+)?\s+\S+(?:--|\.\.)\S+\s+([\w-]+)(?::::[\w-]+)?\s*:')
 ER_ENTITY = re.compile(r"^([\w-]+)\s*(?:\[[^\]]*\])?\s*\{")
 
 
@@ -338,13 +338,25 @@ def _target_names(node):
             yield from _target_names(elt)
 
 
+def _iter_scope(stmts):
+    for node in stmts:
+        yield node
+        if isinstance(node, (ast.If, ast.With, ast.AsyncWith, ast.Try)):
+            yield from _iter_scope(node.body)
+            yield from _iter_scope(node.orelse)
+            if isinstance(node, ast.Try):
+                for h in node.handlers:
+                    yield from _iter_scope(h.body)
+                yield from _iter_scope(node.finalbody)
+
+
 def _python_defines(tree, parts):
     """True when `parts` (e.g. ["Class", "method"]) names a def/class/assignment path."""
     scope = tree.body
     for i, part in enumerate(parts):
         last = i == len(parts) - 1
         found = None
-        for node in scope:
+        for node in _iter_scope(scope):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                 if node.name == part:
                     found = node
@@ -369,7 +381,7 @@ def defines(target, symbol):
     if target.suffix in (".sh", ".bash") or text.startswith("#!/usr/bin/env bash") \
             or text.startswith("#!/bin/bash") or text.startswith("#!/bin/sh"):
         name = re.escape(symbol)
-        return re.search(rf"^\s*(?:function\s+)?{name}\s*\(\)|"
+        return re.search(rf"^\s*(?:function\s+{name}(?:\s*\(\))?(?![\w-])|{name}\s*\(\))|"
                          rf"^\s*(?:export\s+|readonly\s+|local\s+|declare\s+\S+\s+)?{name}=",
                          text, re.M) is not None
     return re.search(rf"(?<![\w-]){re.escape(symbol)}(?![\w-])", text) is not None
@@ -450,7 +462,7 @@ def validate_block(block, root, limits, out):
         err(n0, f"unknown diagram type `{kind}`")
         return
 
-    if not any(raw.strip().startswith("accTitle") for _, raw in body):
+    if not any(re.match(r"accTitle\s*:\s*\S", raw.strip()) for _, raw in body):
         err(n0, "missing `accTitle:` — the figure needs a name for screen readers")
 
     content, in_descr = [], False
