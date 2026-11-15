@@ -37,6 +37,9 @@ jobs:
             echo "::endgroup::"
           done
 
+      - name: Lint the workflow examples of the github-actions skill
+        run: python3 .github/scripts/lint_workflow_examples.py skills/github-actions
+
       - name: Check for broken symlinks
         run: |
           set -e
