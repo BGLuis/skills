@@ -105,7 +105,7 @@ def extract_blocks(path, text):
 
 FLOW_ID = re.compile(r"[A-Za-z0-9_]+(?:-[A-Za-z0-9_]+)*")
 EDGE_TEXT = re.compile(r"<?(?:--|==|-\.)\s+(.*?)\s+(?:-->|---|\.->|\.-|==>|===)")
-EDGE = re.compile(r"<?(?:-\.+-|-{2,}|={2,}|~{3,})[>ox]?")
+EDGE = re.compile(r"[<ox]?(?:-\.+-|-{2,}|={2,}|~{3,})[>ox]?")
 SHAPES = [("(((", (")))",)), ("((", ("))",)), ("([", ("])",)), ("[(", (")]",)),
           ("[[", ("]]",)), ("{{", ("}}",)), ("[/", ("/]", "\\]")), ("[\\", ("\\]", "/]")),
           ("[", ("]",)), ("(", (")",)), ("{", ("}",)), (">", ("]",))]
@@ -150,9 +150,14 @@ def _scan_flow_line(line, n, graph):
             continue
         m = EDGE_TEXT.match(line, pos) or EDGE.match(line, pos)
         if m:
-            if m.re is EDGE_TEXT and SPECIAL & set(m.group(1)):
-                graph.issues.append((n, f'edge text "{m.group(1)}" holds brackets; use |"..."|'))
+            if m.re is EDGE_TEXT:
+                edge_text = m.group(1).strip()
+                is_quoted = len(edge_text) >= 2 and edge_text.startswith('"') and edge_text.endswith('"')
+                if not is_quoted and SPECIAL & set(edge_text):
+                    graph.issues.append((n, f'edge text "{m.group(1)}" holds brackets; use |"..."|'))
             pos = m.end()
+            while pos < len(line) and line[pos] in " \t":
+                pos += 1
             if line.startswith("|", pos):
                 end = line.find("|", pos + 1)
                 text = line[pos + 1:end] if end > 0 else ""
@@ -196,7 +201,7 @@ def parse_flowchart(body):
             continue
         if line == "end" or line == "}":
             continue
-        if line.startswith("subgraph"):
+        if re.match(r"subgraph\b", line):
             m = re.match(r"subgraph\s+([\w-]+)", line)
             if m:
                 subgraphs.add(m.group(1))
@@ -234,7 +239,7 @@ def parse_sequence(body):
 
 STATE_ALIAS = re.compile(r'^state\s+"[^"]*"\s+as\s+([\w-]+)')
 STATE_DECL = re.compile(r"^state\s+([\w-]+)")
-STATE_EDGE = re.compile(r"^(\S+)\s*-->\s*([^\s:]+)")
+STATE_EDGE = re.compile(r"^(\[\*\]|[^\s:]+)(?::::[\w-]+)?\s*-->\s*(\[\*\]|[^\s:]+)(?::::[\w-]+)?")
 STATE_DESC = re.compile(r"^([\w-]+)\s*:")
 
 
@@ -325,6 +330,14 @@ def check_location(loc, root, n, err):
         err(n, f"anchor `{rel}#{symbol}`: no definition of `{symbol}` in the file")
 
 
+def _target_names(node):
+    if isinstance(node, ast.Name):
+        yield node.id
+    elif isinstance(node, (ast.Tuple, ast.List)):
+        for elt in node.elts:
+            yield from _target_names(elt)
+
+
 def _python_defines(tree, parts):
     """True when `parts` (e.g. ["Class", "method"]) names a def/class/assignment path."""
     scope = tree.body
@@ -338,7 +351,7 @@ def _python_defines(tree, parts):
                     break
             elif last and isinstance(node, (ast.Assign, ast.AnnAssign)):
                 targets = node.targets if isinstance(node, ast.Assign) else [node.target]
-                if any(isinstance(t, ast.Name) and t.id == part for t in targets):
+                if any(part in _target_names(t) for t in targets):
                     return True
         if found is None:
             return False
@@ -412,7 +425,11 @@ def validate_block(block, root, limits, out):
         return
 
     for n, raw in body:
-        if raw.strip().startswith("%%"):
+        stripped = raw.strip()
+        if re.match(r"%%\{\s*init\s*:", stripped):
+            err(n, "drop the `%%{init: ...}%%` directive; GitHub picks the theme for light and dark mode")
+            continue
+        if stripped.startswith("%%"):
             continue
         if re.match(r"\s*click\s", raw):
             err(n, "`click` handler; GitHub's sandbox may drop it — the anchor points at the code")
@@ -443,6 +460,8 @@ def validate_block(block, root, limits, out):
             in_descr = line != "}"
         elif re.match(r"accDescr\s*\{", line):
             in_descr = not line.endswith("}")
+        elif not line or line.startswith("%%") or re.match(r"(?:accTitle|accDescr)\s*:", line):
+            continue
         elif n != n0:
             content.append((n, raw))
     graph = PARSERS[kind](content)
@@ -487,9 +506,11 @@ def find_renderer(mmdc):
             return None if p.returncode == 0 else (p.stderr or p.stdout)
         return " ".join(cmd), run
     if shutil.which("docker"):
+        user_flag = ["-u", f"{os.getuid()}:{os.getgid()}"] if hasattr(os, "getuid") else []
+
         def run(src, dst):
             p = subprocess.run(
-                ["docker", "run", "--rm", "-u", f"{os.getuid()}:{os.getgid()}",
+                ["docker", "run", "--rm", *user_flag,
                  "-v", f"{src.parent}:/data", "minlag/mermaid-cli",
                  "-q", "-i", f"/data/{src.name}", "-o", f"/data/{dst.name}"],
                 capture_output=True, text=True, timeout=300)

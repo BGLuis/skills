@@ -262,6 +262,66 @@ class ValidateDiagramsTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("render failed: Error: Parse error on line 3:", out)
 
+    def test_flowchart_edge_variants_quoted_text_and_subgraph_prefix_ids(self):
+        md = textwrap.dedent("""\
+            ```mermaid
+            flowchart LR
+              accTitle: Edge and id variants
+              %% @a: external
+              %% @b: external
+              %% @subgraphService: external
+              a --> |yes| b
+              a o--o b
+              b x--x subgraphService
+              a -- "O(1) lookup" --> subgraphService
+            ```
+        """)
+        code, out = self.run_on(md)
+        self.assertEqual(code, 0, out)
+        self.assertEqual(self.errors(out), [])
+
+        bad = md.replace('"O(1) lookup"', "O(1) lookup")
+        code, out = self.run_on(bad)
+        self.assertEqual(code, 1)
+        self.assertIn("holds brackets", out)
+
+    def test_acc_directives_and_state_class_shorthand_do_not_create_fake_nodes(self):
+        md = textwrap.dedent("""\
+            ```mermaid
+            sequenceDiagram
+              accTitle: Client -> Server: Token refresh
+              accDescr: A -> B: details
+              %% @C: external
+              %% @S: external
+              C->>S: refresh
+            ```
+
+            ```mermaid
+            stateDiagram-v2
+              accTitle: Pending-->Paid
+              %% @Pending: external
+              %% @Paid: external
+              classDef changed stroke:#d97706,stroke-width:3px
+              Pending:::changed --> Paid:::changed
+            ```
+        """)
+        code, out = self.run_on(md)
+        self.assertEqual(code, 0, out)
+        self.assertEqual(self.errors(out), [])
+
+    def test_python_tuple_unpacking_symbol_is_a_definition(self):
+        (self.root / "src" / "const.py").write_text("LIMIT_A, LIMIT_B = 9, 12\n")
+        md = VALID.replace("src/api.py#SELECT", "src/const.py#LIMIT_A")
+        code, out = self.run_on(md, "--repo-root", str(self.root))
+        self.assertEqual(code, 0, out)
+        self.assertEqual(self.errors(out), [])
+
+    def test_init_directive_fails(self):
+        md = VALID.replace("flowchart LR", '%%{init: {"theme": "dark"}}%%\n    flowchart LR')
+        code, out = self.run_on(md)
+        self.assertEqual(code, 1)
+        self.assertIn("%%{init: ...}%%", out)
+
 
 if __name__ == "__main__":
     unittest.main()
