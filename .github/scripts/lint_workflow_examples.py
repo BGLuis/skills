@@ -65,8 +65,10 @@ def docker(root: Path, image: str, *args: str) -> subprocess.CompletedProcess:
 def actionlint_errors(root: Path, image: str) -> list[str]:
     files = sorted(str(p.relative_to(root)) for p in (root / ".github" / "workflows").glob("*.yml"))
     result = docker(root, image, "-oneline", "-no-color", *files)
-    errors = []
-    for line in result.stdout.splitlines() + result.stderr.splitlines():
+    # actionlint exits 1 when it finds problems; anything higher means it did not run.
+    # stderr is not scanned for findings: `docker run` writes its image-pull progress there.
+    errors = [result.stderr.strip()] if result.returncode > 1 else []
+    for line in result.stdout.splitlines():
         if not line.strip() or any(known in line for known in ACTIONLINT_FALSE_POSITIVES):
             continue
         location = re.match(r"(?P<file>[^:]+):(?P<line>\d+):\d+: ", line)
