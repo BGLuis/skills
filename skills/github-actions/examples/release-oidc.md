@@ -3,7 +3,7 @@
 A Python package built with uv. The layout generalizes to anything that produces files:
 
 1. `build`: `contents: read` only, **no cache** (cache poisoning), builds the distribution once, uploads it as an artifact.
-2. `attest` inside `build`: signs SLSA build provenance with the job's OIDC identity.
+2. `attest`: downloads those bytes and signs SLSA build provenance with its own OIDC identity. It runs no code from the repository.
 3. `pypi`: downloads the exact bytes that were built and publishes through **trusted publishing** (OIDC, no `PYPI_TOKEN`), gated by the `pypi` environment.
 4. `github-release`: the only job with `contents: write`.
 
@@ -12,6 +12,8 @@ Validated on the bench repo with tags v0.1.0–v0.1.3:
 - `gh attestation verify` passed on the downloaded wheel (signer `release.yml@refs/tags/v0.1.0`).
 - A tag without a version bump failed in `build`, so nothing was published.
 - `concurrency.queue` was accepted.
+
+Those runs signed inside `build`, with `actions/attest-build-provenance`. Signing was moved to its own `attest` job afterwards, so that the build backend never runs with `id-token: write`, and it now calls `actions/attest` directly (the old action is a wrapper around it since v4). **That shape was linted, not run.**
 
 zizmor 1.32.0 reports nothing. actionlint 1.7.12 flags only the newer `queue` and `cache-mode` keys (false positives, see `references/review-checklist.md`). The `pypi` job needs a PyPI trusted publisher, so it was linted but not run.
 
@@ -36,9 +38,7 @@ jobs:
     timeout-minutes: 10
     cache-mode: none # release: never restore or save a cache
     permissions:
-      contents: read     # checkout
-      id-token: write    # sign the provenance attestation
-      attestations: write # store the attestation
+      contents: read # checkout
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -51,9 +51,6 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: test "v$(uv version --short)" = "$TAG"
       - run: uv build
-      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
-        with:
-          subject-path: dist/*
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dist
@@ -61,9 +58,29 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
+  # Signing has its own job: `uv build` runs the project's build backend, and that code
+  # must not be able to mint the OIDC token that signs the provenance.
+  attest:
+    name: attest
+    needs: build
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    cache-mode: none # holds signing rights: no cache at all
+    permissions:
+      id-token: write     # sign the provenance attestation
+      attestations: write # store the attestation
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dist
+          path: dist/
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: dist/*
+
   pypi:
     name: pypi
-    needs: build
+    needs: attest
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     cache-mode: none # holds publishing rights: no cache at all
@@ -81,7 +98,7 @@ jobs:
 
   github-release:
     name: github-release
-    needs: build
+    needs: attest
     runs-on: ubuntu-slim
     timeout-minutes: 5
     cache-mode: none # holds publishing rights: no cache at all
@@ -103,10 +120,10 @@ jobs:
 
 - **Build once, publish the same bytes.** Every consumer downloads the artifact. Nothing rebuilds, so what was attested is what ships. `download-artifact@v8` fails if the digest doesn't match.
 - **No cache in release workflows.** A cache is written by a less trusted run (any push to main) and restored into the job that holds publishing rights. `cache-mode: none` on **every** job of the workflow enforces that at the token level (the publishing jobs restore nothing today, but the token guarantees it stays that way when someone adds a setup action), and `enable-cache: false` makes the intent visible in the action (setup-uv v10 already skips caching on tag pushes).
-- **Permissions per job.** `build` can sign but not write the repo. `pypi` can only mint an OIDC token. `github-release` can write contents but has no OIDC. A compromised build step can't create a release.
+- **Permissions per job.** `build` runs third-party code (the build backend and its plugins) and can only read the repo. `attest` can sign but executes nothing from the repo. `pypi` can only mint an OIDC token, inside its environment. `github-release` can write contents but has no OIDC. A compromised build step can neither sign an attestation nor create a release, and nothing is published unless `attest` succeeded.
 - **The `pypi` environment** holds the protection rules (required reviewers, tag pattern `v*`). On PyPI, configure the trusted publisher with repo + workflow `release.yml` + environment `pypi`, so a token minted anywhere else is rejected.
 - **`concurrency: release`, `cancel-in-progress: false`, `queue: max`**: tags pushed close together all complete, one after the other. Without `queue: max`, only one run can be pending, so a third tag would cancel the second one while it waits.
-- **`ubuntu-slim` for `github-release`**: it is one API call, so it runs on the ⅓-price runner.
+- **`ubuntu-slim` for `attest` and `github-release`**: both are a download and a few API calls, so they run on the ⅓-price runner.
 - Turn on **immutable releases** in the repository settings, so the published tag and assets can't be replaced afterwards.
 - `--verify-tag` makes `gh release create` fail instead of silently creating a tag that doesn't exist.
 - **The tag must match the package version.** On the bench, pushing `v0.1.1` without bumping `pyproject.toml` happily published `bench_py-0.1.0-*.whl` under release v0.1.1. The first step now fails that case in about a second, before anything is built or signed.

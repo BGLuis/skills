@@ -11,30 +11,31 @@ Act as a Platform Engineer. Every workflow you write or review must satisfy, in 
 
 1. **Read before writing.** Existing `.github/workflows/`, the package manager and lockfile (and **which directory** they live in), language versions (`.nvmrc`, `go.mod`, `.python-version`, `rust-toolchain.toml`), the real lint/test/build commands, branch protection and required checks if you can see them, and whether the repo is public or private (private runners have half the vCPUs). Map each workflow's triggers and branches, and how often its expensive jobs (release builds, macOS/Windows cells) actually run: `references/triggers.md` §5.
 2. **Start from the example** for the stack in `examples/`. They were run on real GitHub-hosted runners and carry measured numbers.
-3. **Resolve pins**: every `uses:` gets a full SHA + `# vX.Y.Z` comment. Take them from `references/versions.md`, and re-resolve with `gh api` if the table is stale.
+3. **Resolve pins**: every `uses:` gets a full SHA + `# vX.Y.Z` comment. Take them from `references/versions.md`. If the table is stale, `python3 scripts/check_pins.py` checks each SHA against its tag and prints the newer releases that are past the cooldown. Where the repository can adopt it, also lock the workflow (`gh actions-lock`, `references/security.md` §4).
 4. **Validate** when Docker (or the binaries) is available:
    - `docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:1.7.12` (no errors, except its known false positives on the 2026 keys `parallel:`/`background:`, `concurrency.queue` and `cache-mode`)
-   - `docker run --rm -v "$PWD":/repo -w /repo ghcr.io/zizmorcore/zizmor:1.32.0 --offline .github/workflows` (no findings, or each one silenced inline with a reason)
-5. **Measure** when you can run it (`gh run view --json jobs`, see `references/review-checklist.md` §2): cold, warm and code-change runs. Report wall-clock, job time and **billable minutes**. Mark numbers as *estimated* when you could not run them. Hosted runners vary by up to about 2× between identical runs, so compare medians of ≥ 3.
+   - `docker run --rm -v "$PWD":/repo -w /repo ghcr.io/zizmorcore/zizmor:1.32.0 --offline .` (no findings, or each one silenced inline with a reason). The target is the repository root, so composite actions and `.github/dependabot.yml` are audited too
+   - Neither run covers everything: actionlint lints nothing inside `parallel:`, and `--offline` skips zizmor's network audits, including the one that compares a `# vX.Y.Z` comment with its SHA (`references/review-checklist.md` §2)
+5. **Measure** when you can run it (`python3 scripts/billable_minutes.py OWNER/REPO <run ids>`, see `references/review-checklist.md` §2): cold, warm and code-change runs. Report wall-clock, job time and **billable minutes**. Mark numbers as *estimated* when you could not run them. Hosted runners vary by up to about 2× between identical runs, so compare medians of ≥ 3.
 
 ## 1. Non-negotiable rules
 
 - `permissions: {}` at workflow level. Each job grants only what it uses, **with a comment saying why**.
-- Third-party **and** first-party actions pinned by full commit SHA. Container images pinned by digest. Dependabot (`github-actions` ecosystem) with a cooldown keeps them current.
+- Third-party **and** first-party actions pinned by full commit SHA. Container images pinned by digest. Dependabot (`github-actions` ecosystem) with a cooldown keeps them current. A workflow lockfile on top, where available: it is the only thing that also fixes the actions called by other actions.
 - Never expand untrusted input (`github.event.*` text, `head_ref`, inputs, artifact contents) with `${{ }}` inside `run:`/`script:`. Pass it through `env:`.
 - `actions/checkout` with `persist-credentials: false`, unless that job pushes.
 - No `pull_request_target`/`workflow_run` that checks out or executes PR code. For write access on PRs, use the split in `examples/pr-privileged-split.md`.
-- OIDC (`id-token: write` on one job) for cloud and registry credentials, and trusted publishing for PyPI/npm. Production deploys go through an `environment:` with reviewers.
-- No cache restores in release, publish or privileged jobs: `cache-mode: none` on those jobs. Never set `cache-mode: write` on a low-trust trigger.
+- OIDC (`id-token: write` on one job, never the job that runs the build) for cloud and registry credentials, and trusted publishing for PyPI/npm. Production deploys go through an `environment:` with reviewers.
+- No cache restores in release, publish or privileged jobs: `cache-mode: none` on those jobs. Never set `cache-mode: write` on a low-trust trigger. The one exception is a continuous image pushed from the default branch, which may read the layer cache that only default-branch runs write (`examples/docker-build-push.md`).
 - Release builds (release profile, signing, packaging, every OS/arch target, publishing) run only on tags, `release`, `workflow_dispatch` or `schedule`. Never on `pull_request`, and on `push` to a branch only when the product really ships a build per commit. PRs get the cheapest build that proves the code compiles (`references/triggers.md` §1).
 - `timeout-minutes` on every job (the default is 360).
 - `concurrency` on every PR workflow: `group: ${{ github.workflow }}-${{ github.ref }}`, `cancel-in-progress: ${{ github.event_name == 'pull_request' }}`. Deploys use a fixed group that never cancels.
-- Pinned runner images (`ubuntu-24.04`), not `-latest` (`ubuntu-latest` is moving to 26.04 between 2026-10-19 and 2026-11-19).
+- Pinned runner images (`ubuntu-24.04`), not `-latest`: that label moves to a new OS release on a date you don't choose (current mapping: `references/versions.md`).
 - Current action majors only. Node 24 is the only runtime on the runners (Node 20 removal: 2026-09-23). `@v4`-era actions still run, but the runner **forces them onto Node 24** with a deprecation warning, a combination their authors never tested.
 
 ## 2. Minimum resources: the levers that matter (measured)
 
-Numbers are from the bench repo (public runners, 2026-09-23): cold, 2 warm and 1 code-change run per variant. Details are in `references/performance-cost.md` and each example.
+Numbers are from the bench repo (public runners, 2026-09-23): cold, 2 warm and 1 code-change run per variant. That is fewer runs than step 5 asks for, so read the **durations** as indicative ranges. The **billable minutes** follow from the number of jobs and do not depend on the sample. Details are in `references/performance-cost.md` and each example.
 
 | Lever | Effect |
 |---|---|
@@ -58,7 +59,8 @@ Numbers are from the bench repo (public runners, 2026-09-23): cold, 2 warm and 1
 | `references/caching.md` | adding or debugging a cache; cache misses; the 10 GB limit; Docker layer cache |
 | `references/checkout-and-git.md` | monorepos, history needed (tags, changelog), LFS, slow checkout |
 | `references/reuse.md` | composite actions, reusable workflows, `$/` self-repository refs |
-| `references/versions.md` | pinning; upgrading actions; Node runtime and runner-version questions |
+| `references/versions.md` | pinning; upgrading actions; Node runtime, runner-image and runner-version questions |
+| `scripts/check_pins.py` · `scripts/billable_minutes.py` | run, don't read: check the pin table against GitHub; measure runs (wall-clock, job time, billable minutes, medians) |
 | `references/review-checklist.md` | **reviewing** an existing workflow; measuring before/after |
 | `examples/node-ci.md` · `python-uv-ci.md` · `go-ci.md` · `rust-ci.md` | CI template for the stack, with measured naive vs optimized |
 | `examples/binary-app.md` | apps/CLIs that ship binaries: PR vs. merge vs. tag tiers, opt-in packaging previews, multi-OS release matrix |

@@ -45,7 +45,7 @@ Also forbidden: writing untrusted data into `$GITHUB_ENV` or `$GITHUB_PATH` (ziz
 `pull_request_target`, `workflow_run` and `issue_comment` run with **secrets, a write-capable token and access to the default branch's cache** while reacting to outside contributors.
 
 - Default to `pull_request`. Fork PRs get a read-only token and no secrets by design; don't work around that.
-- Since 2025-12-08, `pull_request_target` always uses the workflow file **and the checkout ref from the default branch**. Since `actions/checkout@v7` (backported to the v4–v6 floating tags on 2026-07-20; SHA pins need a bump), checkout **refuses** to fetch fork-PR code under `pull_request_target`/`workflow_run` unless you set `allow-unsafe-pr-checkout: true`. Never set it.
+- Since 2025-12-08, `pull_request_target` always uses the workflow file **and the checkout ref from the default branch**. Since `actions/checkout@v7` (backported to the v2–v6 floating tags on 2026-07-20; SHA pins need a bump), checkout **refuses** to fetch fork-PR code under `pull_request_target`/`workflow_run` unless you set `allow-unsafe-pr-checkout: true`. Never set it.
 - From **2026-12-02**, *workflow execution protections* block `pull_request_target` in public repos by default (moved from 2026-11-02; brownouts on 2026-11-09 and 2026-11-16, 16:00–18:00 UTC; the rule runs in evaluate mode until then). Private and internal repos are not affected. To keep a workflow that really needs it, allow the trigger in an Actions event policy scoped to that workflow file ([changelog](https://github.blog/changelog/2026-11-02-pull_request_target-blocked-by-default-december-2)).
 - If the privileged part is only labelling or commenting, keep it in `pull_request_target` **without checking out code**.
 - If you need to act on the result of untrusted code (comment coverage, upload a preview), **split it in two**: see `examples/pr-privileged-split.md`. The unprivileged `pull_request` workflow builds and uploads an artifact. The privileged `workflow_run` workflow downloads it, **treats it as data** (unzip into `$RUNNER_TEMP`, never into the workspace, never `source` it, never write it to `$GITHUB_ENV`), and validates it before use.
@@ -54,9 +54,22 @@ Also forbidden: writing untrusted data into `$GITHUB_ENV` or `$GITHUB_PATH` (ziz
 - Never restore caches in release or publish jobs (zizmor `cache-poisoning`). A PR can't write to main's cache, but a privileged workflow that restores a cache written by a less trusted run can be poisoned. The platform-level switch is **`cache-mode: none`** on the job, enforced by the token whatever the actions do (`references/caching.md` §1). Also turn the action caches off so the intent is visible: `package-manager-cache: false` (setup-node), `cache: false` (setup-go), `enable-cache: false` (setup-uv; v10 already does this on release/tag events).
 - Low-trust triggers (`pull_request_target`, `issue_comment`, `workflow_run`) get `cache-mode: read` by default. **Never override it with `cache-mode: write`.**
 
-## 4. Supply chain: pinning and updates
+## 4. Supply chain: lockfile, pinning and updates
 
-- Pin **every** `uses:` to a full SHA with a version comment (`references/versions.md`). In March 2025 the tags of `tj-actions/changed-files` were rewritten to a commit that dumped runner memory into the logs (CVE-2025-30066). Every tag-pinned consumer ran it. SHA-pinned consumers did not.
+- **Lock the workflow's dependencies** when the repository can (generally available since 2026-10-28 on Free, Team and Enterprise Cloud; not announced for GHES). `.github/workflows/actions.lock` records the commit of every action a workflow uses, **including the actions those actions call**, and the runner executes the recorded commit even if a tag or branch moves. GitHub's [secure-use reference](https://docs.github.com/en/actions/reference/security/secure-use) ranks it above SHA pinning ([how-to](https://docs.github.com/en/actions/how-tos/secure-your-work/lock-workflow-dependencies)). A SHA pin on `some/composite-action` says nothing about the `uses: other/action@v2` inside it.
+  ```bash
+  gh extension install github/gh-actions-lock
+  gh actions-lock                           # every workflow under .github/workflows/
+  gh actions-lock .github/workflows/ci.yml  # onboard one workflow at a time
+  gh actions-lock --relock                  # re-resolve a ref that moved upstream, after reviewing why
+  ```
+  - Never edit the lockfile by hand. Re-run `gh actions-lock` after changing a `uses:` line and commit both in the same PR. `gh actions-lock --help` lists the mode that checks in CI that the lockfile is current. Dependabot regenerates the entry when it bumps an action of an onboarded workflow.
+  - A full version tag (`v7.0.1`) that moves is an **error** until you relock. A branch or partial tag (`v7`, `main`) keeps running the locked commit with a `ref-moved` warning.
+  - `./local` actions can't be locked. Migrate them to `$/` with `gh actions-lock --migrate-local-actions` (`references/reuse.md`).
+  - Reusable workflows from another repository are covered by **that** repository's lockfile, not yours.
+  - An allow-list is matched against the locked SHA once a workflow is onboarded, so an entry such as `actions/checkout@v7` stops matching.
+  - A lockfile fixes what runs. It does not review it: read an action before you lock it.
+- Keep the SHA pins as well. They cost nothing next to a lockfile, they are what protects a workflow that is not onboarded yet, and they are the only option where lockfiles are not available. Pin **every** `uses:` to a full SHA with a version comment (`references/versions.md`). In March 2025 the tags of `tj-actions/changed-files` were rewritten to a commit that dumped runner memory into the logs (CVE-2025-30066). Every tag-pinned consumer ran it. SHA-pinned consumers did not.
 - A pin without updates rots. Enable Dependabot for the `github-actions` ecosystem with a **cooldown** so a freshly published malicious release doesn't land the same day. Since 2026-07-14, Dependabot applies a 3-day default cooldown to version updates; security updates skip it.
   ```yaml
   # .github/dependabot.yml
@@ -72,7 +85,7 @@ Also forbidden: writing untrusted data into `$GITHUB_ENV` or `$GITHUB_PATH` (ziz
 - Org or repo policy (since 2025-08): **require full-commit SHA** (unpinned actions fail the run) and **block** actions with `!owner/action`. Local `./` actions count as unpinned under that policy; `uses: $/path/to/action` (same repo, same commit, runner ≥ 2.336.0) passes.
 - Prefer fewer third-party actions. Each one runs with the job's token. If a step is three lines of shell, write the shell. For changed-file detection, use `dorny/paths-filter` or plain `git diff --name-only`.
 - Pin container images (`container:`, `services:`) by digest.
-- zizmor's online audits (`impostor-commit`, `known-vulnerable-actions`, `stale-action-refs`, `ref-confusion`) need a token: `zizmor --gh-token "$(gh auth token)" .github/workflows`.
+- zizmor's online audits (`impostor-commit`, `known-vulnerable-actions`, `stale-action-refs`, `ref-confusion`, `ref-version-mismatch`) need a token and are skipped by `--offline`: `zizmor --gh-token "$(gh auth token)" .`. Pass the repository root, not `.github/workflows`: only then are composite actions (`action.yml`) and `.github/dependabot.yml` audited too.
 
 ## 5. Credentials in the workspace
 
@@ -104,7 +117,7 @@ deploy:
 - Every production deploy goes through an `environment:` with required reviewers and branch or tag rules. Environment secrets are only released to jobs that pass the rules. Since 2025-12-08, branch rules are evaluated against `refs/pull/N/merge` for `pull_request`.
 - Keep secrets in environments, not at repo level (zizmor `secrets-outside-env`, pedantic). Anyone with repo write access can read repo-level secrets.
 - Immutable releases (GA 2025-10-28): turn them on so published release tags and assets can't be moved.
-- Build provenance: `actions/attest-build-provenance` (`id-token: write`, `attestations: write`) gives SLSA v1.0 Build L2. Consumers verify with `gh attestation verify`.
+- Build provenance: `actions/attest` (`id-token: write`, `attestations: write`) gives SLSA v1.0 Build L2. `actions/attest-build-provenance` is a wrapper around it since v4; use `actions/attest` in new workflows. Sign in a job of its own that downloads the artifact, so the build tool and its plugins never run with `id-token: write` (`examples/release-oidc.md`). Consumers verify with `gh attestation verify`.
 - Only grant `contents: write` to the job that creates the release.
 
 ## 8. Runtime hardening (optional, higher assurance)

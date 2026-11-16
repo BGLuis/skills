@@ -33,7 +33,7 @@ Make it opt-in instead of always-on. Three ways, from cheapest to broadest:
          contains(github.event.pull_request.labels.*.name, 'build-binaries') &&
          (github.event.action == 'synchronize' || github.event.label.name == 'build-binaries')
    ```
-   `labeled` must be listed, because the default types are only `opened`, `synchronize` and `reopened`. The second condition ignores other labels being added. Use `contains()` on the **array** `labels.*.name`; on a string, it is a substring match. Full file: `examples/binary-app.md`.
+   `labeled` must be listed, because the default types are only `opened`, `synchronize` and `reopened`. The second condition ignores other labels being added. The same hazard exists inside this file: concurrency is applied to the run before any `if:`, so give it `cancel-in-progress: ${{ github.event.action == 'synchronize' || github.event.label.name == 'build-binaries' }}` and not a plain `true`, or an unrelated label added mid-build cancels the preview and then skips. Use `contains()` on the **array** `labels.*.name`; on a string, it is a substring match. Full file: `examples/binary-app.md`.
 2. **`workflow_dispatch` on the branch.** `gh workflow run release.yml --ref my-branch` builds the artifacts once, on demand. Gate the publishing steps with `if: startsWith(github.ref, 'refs/tags/')` so a dispatch from a branch builds but never publishes.
 3. **Paths.** A job gated by `dorny/paths-filter` on the packaging files (`Cargo.toml`, `.goreleaser.yaml`, `android/`, `ios/`, `Info.plist`, the release workflow itself) runs the packaging build only when they change. This uses the same job-level pattern as `examples/monorepo-paths-filter.md`; never `on.paths` on a required workflow.
 

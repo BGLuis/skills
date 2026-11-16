@@ -2,7 +2,7 @@
 
 This covers the workflow side. The Dockerfile itself (stages, cache mounts, cross-compilation) belongs to the `docker-optimizer` skill.
 
-Measured on GitHub-hosted public runners (`ubuntu-24.04`) on 2026-09-23 with a Go service built for `linux/amd64,linux/arm64`, a multi-stage Dockerfile, and a distroless final image of about 10 MB. The bench built without pushing (`push: false`). The push/login/metadata steps below were linted but not pushed to a registry. Format: wall-clock / Σ job time / billable minutes.
+Measured on GitHub-hosted public runners (`ubuntu-24.04`) on 2026-09-23 with a Go service built for `linux/amd64,linux/arm64`, a multi-stage Dockerfile, and a distroless final image of about 10 MB. The bench built without pushing (`push: false`), in a single job. The push/login/metadata/attest steps and the split into `build` (PRs) and `publish` below were linted but not run against a registry. Format: wall-clock / Σ job time / billable minutes.
 
 | Variant | Cold | Warm (no change) | Code change |
 |---|---|---|---|
@@ -35,20 +35,42 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  image:
-    name: image
+  # PRs prove the image builds, with a read-only token: no registry, no signing.
+  build:
+    name: build
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
-      contents: read       # checkout
-      packages: write      # push to ghcr.io
-      id-token: write      # sign build provenance
-      attestations: write  # store the attestation
+      contents: read # checkout
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       # No setup-qemu-action: the Dockerfile cross-compiles on $BUILDPLATFORM.
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: false
+          cache-from: type=gha,scope=app # main's cache; PRs write none
+
+  publish:
+    name: publish
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read           # checkout
+      packages: write          # push to ghcr.io
+      id-token: write          # sign build provenance
+      attestations: write      # store the attestation
+      artifact-metadata: write # storage record of the pushed image
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
@@ -58,8 +80,7 @@ jobs:
             type=sha
             type=semver,pattern={{version}}
             type=ref,event=branch
-      - if: github.event_name != 'pull_request'
-        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -69,23 +90,23 @@ jobs:
         with:
           context: .
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # Tags are releases: they never restore a cache. PRs read main's cache.
+          # Tags are releases: they never restore a cache.
           cache-from: ${{ github.ref_type != 'tag' && 'type=gha,scope=app' || '' }}
           # Only main writes the cache.
           cache-to: ${{ github.ref == 'refs/heads/main' && 'type=gha,scope=app,mode=max,ignore-error=true' || '' }}
-      - if: github.event_name != 'pull_request'
-        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-name: ghcr.io/${{ github.repository }}
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
 ```
 
-- **PRs build but don't push or log in.** A fork PR has no `packages: write` anyway. The PR job still proves the image builds; it reads main's cache and writes none.
-- `packages: write`, `id-token: write` and `attestations: write` are granted to the one job that needs them. If PRs from forks matter, move the push into a separate job with `if: github.event_name != 'pull_request'`, so the PR job runs with `contents: read` only.
+- **Two jobs, one per trust level.** A job's `permissions` can't vary by event, so a single job would hand `packages: write` and `id-token: write` to every same-repo PR. `build` runs on PRs with `contents: read`, proves the image builds, reads main's cache and writes none. `publish` runs on `main` and tags and is the only one that can push and sign. Each event runs exactly one of them, so the billable minutes are the same as with one job.
+- **Images pushed from `main` are built with main's layer cache.** That cache is written only by `main` pushes (`cache-to` is empty everywhere else) and a PR can't write to it, so it carries the same trust as the branch. It is still the one place in this skill where a publishing job restores a cache. If the `main` image is what you deploy to production, treat it as a release and empty `cache-from` there too.
+- `actions/attest` with `push-to-registry: true` also writes an artifact storage record, which needs `artifact-metadata: write` and only exists for organization-owned repositories. On a user-owned repository, set `create-storage-record: false` and drop that permission.
 - `scope=app`: give each image its own scope, or two images overwrite each other's cache.
 - `ignore-error=true`: a cache-export failure must not fail a good build. Measured: under `cache-mode: read` (or on any read-only trigger), the export **fails the whole build** with `error writing layer blob: failed to reserve cache` unless `ignore-error=true` is set. `actions/cache` only warns in that situation.
 - **Tag builds restore no cache** (`cache-from` is empty on tags), because a release must not be built from layers that another run wrote (`references/security.md` §3). They pay the full cold time (about 62 s in the table above), only once per release. If releases get their own workflow, put `cache-mode: none` on its job instead.

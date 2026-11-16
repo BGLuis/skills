@@ -19,7 +19,7 @@ On other runners (same job, 2 runs each): `ubuntu-24.04-arm` 11–16 s of job ti
 1. **One job instead of six.** Every job rounds up to a billable minute and repeats checkout, Node install and `npm install` (2–5 s each, per job). Six jobs doing 1 minute of total work bill 6 minutes, and one job doing the same work bills 1.
 2. **`parallel:` for the independent checks.** lint, typecheck and test are single-threaded and don't depend on each other, so they share the 4 vCPUs (2 on private repos). Measured: the group finished in 2 s, while its three steps add up to about 5 s.
 3. **The matrix runs only on main**, via an expression. PRs test the version you ship (24), which removes 2 of the 3 test VMs on every PR push. Keep the PR value in sync with `.nvmrc`. The bench measured the single-version job; each extra matrix cell on main adds one job like it.
-4. **`cache: npm` + `cache-dependency-path`**: caches `~/.npm` keyed on the lockfile. On this small dependency set, warm `npm ci` took 2–5 s either way. The cache matters more as `node_modules` grows, and it keeps working when the registry is slow. Automatic caching only kicks in when the **root** `package.json` has `packageManager: npm@…`, so set `cache:` explicitly.
+4. **`cache: npm` + `cache-dependency-path`**: caches `~/.npm` keyed on the lockfile. On this small dependency set, warm `npm ci` took 2–5 s either way. The cache matters more as `node_modules` grows, and it keeps working when the registry is slow. Automatic caching only kicks in when the **root** `package.json` names npm in `packageManager` or `devEngines.packageManager`, so set `cache:` explicitly.
 5. **`npm ci --ignore-scripts --no-audit --no-fund`**: lockfile-exact, no install scripts from dependencies (supply chain), and no network round-trips for audit and fund messages.
 6. **Artifacts**: `retention-days: 3` instead of the repo default (often 90). `if-no-files-found: error` catches a build that silently produced nothing.
 
@@ -73,5 +73,6 @@ jobs:
 ```
 
 - actionlint 1.7.12 flags `parallel:` as `step must run script with "run" section…`. That's a false positive, because the syntax is newer than the linter. GitHub accepted and ran it. To support linters that predate it, replace the group with three sequential steps; that costs about 3 s on this project.
+- **Nothing inside `parallel:` is linted by actionlint 1.7.12**: no expression check, no shellcheck, no untrusted-input warning. zizmor 1.32.0 does audit those steps, but calls its support experimental. Keep each step in the group to a one-line call of a package script, as here, with no `${{ }}` and no inline shell. Anything longer goes in a sequential step or in a script file.
 - For a project in a subdirectory, add `defaults.run.working-directory: <dir>`, `cache-dependency-path: <dir>/package-lock.json`, the `.nvmrc` path, and `working-directory` on each step inside `parallel:`. The bench workflow (`node-opt.yml`) is this file with those changes and no matrix.
 - pnpm: add `pnpm/action-setup` (with `cache: true`) **before** setup-node and drop `cache: npm` from setup-node. Caching in both wastes a save. Bun: `oven-sh/setup-bun` caches by default.
