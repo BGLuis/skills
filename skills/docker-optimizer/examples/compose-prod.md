@@ -10,7 +10,7 @@ name: app
 x-hardening: &hardening
   read_only: true
   tmpfs:
-    - /tmp
+    - /tmp:size=64m
   cap_drop: [ALL]
   security_opt:
     - "no-new-privileges:true"
@@ -33,6 +33,7 @@ services:
       GOMEMLIMIT: 115MiB        # ~90% of the limit
     stop_grace_period: 10s
     # distroless without a shell: the image's HEALTHCHECK calls `/server healthcheck`
+    memswap_limit: 128M         # same as the memory limit: no swap
     deploy:
       resources:
         limits: { cpus: "0.50", memory: 128M, pids: 100 }
@@ -55,6 +56,7 @@ services:
       timeout: 3s
       start_period: 10s
       retries: 3
+    memswap_limit: 256M
     deploy:
       resources:
         limits: { cpus: "0.50", memory: 256M, pids: 100 }
@@ -104,7 +106,8 @@ Bring it up with `docker compose up -d --wait`. The command blocks until everyth
 |---|---|
 | `deploy.resources.limits` cpus/memory/pids | `NanoCpus=500000000`, `Memory=134217728`, `PidsLimit=100` |
 | `reservations.memory` | `MemoryReservation=67108864` |
-| `read_only` + `tmpfs` | `ReadonlyRootfs=true`, `/tmp` tmpfs `rw,nosuid,nodev,noexec`. Writing to `/` → `Read-only file system` |
+| `memswap_limit` = memory limit | `MemorySwap` = `Memory`, `memory.swap.max` = 0 inside the container. Without it: `memory.swap.max` = the memory limit |
+| `read_only` + `tmpfs` | `ReadonlyRootfs=true`, `/tmp` tmpfs `rw,nosuid,nodev,noexec,size=65536k`, writable by UID 65532. Writing to `/` → `Read-only file system` |
 | `cap_drop`, `security_opt`, `init` | `CapDrop=[ALL]`, `SecurityOpt=[no-new-privileges:true]`, `Init=true` |
 | `logging` | `LogConfig={Type:json-file, max-size:10m, max-file:3}` (the daemon default has **no** rotation) |
 | `restart: unless-stopped` | `RestartPolicy={Name:unless-stopped}` |
@@ -114,6 +117,8 @@ Bring it up with `docker compose up -d --wait`. The command blocks until everyth
 ## Decisions and why
 
 - **`deploy.resources` vs `mem_limit`/`cpus`/`pids_limit`**: both work outside Swarm. Pick **one**. Setting both with different values is a hard error: `can't set distinct values on 'cpus' and 'deploy.resources.limits.cpus'`.
+- **`memswap_limit` equal to the memory limit**. On a host with swap, a memory limit alone lets the container use that much swap on top, so a leak turns into slow swapping instead of an OOM kill and a restart. The field has no `deploy.resources` equivalent, and the two can be combined.
+- **`tmpfs` with a `size`**. Without it the mount is sized at half the host's RAM (measured: 31.3 G on a 62 GiB host), and what the app writes there counts against the container's memory limit.
 - **`restart: unless-stopped`** for services. `on-failure:3` gives up after 3 failures and leaves the service down. Use it only for jobs, or when an external supervisor exists.
 - **Log rotation is mandatory**. The daemon's default `json-file` grows without limit and fills the disk. Alternatively, configure `"log-opts"` in `/etc/docker/daemon.json` for the whole host, or use the `local` driver (compressed, rotated by default).
 - **`read_only` + `tmpfs`**: an attacker can't persist files, and the app can't create state by accident. If the app writes cache or uploads, mount a specific volume or tmpfs (`/app/cache`), and never turn off `read_only` for the whole container.

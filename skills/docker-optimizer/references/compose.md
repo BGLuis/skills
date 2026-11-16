@@ -20,12 +20,13 @@ deploy:
 
 - Honored by plain `docker compose up` (`NanoCpus`, `Memory`, `PidsLimit`, `MemoryReservation` in `docker inspect`).
 - The top-level form (`cpus`, `mem_limit`, `pids_limit`) is equivalent. **Don't mix the two** with different values: `can't set distinct values on 'cpus' and 'deploy.resources.limits.cpus'`.
+- On a host with swap, the container also gets swap equal to the memory limit (measured: `memory: 128M` → `memory.swap.max` = 128 MB). `memswap_limit: 128M` on the service (the same value as the limit) turns it off. It has no `deploy.resources` equivalent, and it works next to it.
 - The limit alone isn't enough. Tune the runtime for it (Node heap, Python workers, JVM, GOMEMLIMIT). See `runtime-performance.md`.
 - `deploy.replicas` works in Compose for stateless services without a fixed host port.
 
 ## Hardening (validated)
 
-`read_only: true` + `tmpfs`, `cap_drop: [ALL]`, `security_opt: ["no-new-privileges:true"]`, `user: "UID:GID"`, `init: true`. Go, Node and Python apps reached healthy with all of them together. Exceptions: images whose entrypoint needs root to prepare the environment (Postgres, nginx upstream on port 80). For those, keep `no-new-privileges` and limits, and relax the rest, or use unprivileged variants (`nginxinc/nginx-unprivileged`).
+`read_only: true` + `tmpfs`, `cap_drop: [ALL]`, `security_opt: ["no-new-privileges:true"]`, `user: "UID:GID"`, `init: true`. Go, Node and Python apps reached healthy with all of them together. Give each `tmpfs` a size (`/tmp:size=64m`): without one it is sized at half the host's RAM, and its content counts against the container's memory limit. Exceptions: images whose entrypoint needs root to prepare the environment (Postgres, nginx upstream on port 80). For those, keep `no-new-privileges` and limits, and relax the rest, or use unprivileged variants (`nginxinc/nginx-unprivileged`).
 
 ## Health, order and deploy
 

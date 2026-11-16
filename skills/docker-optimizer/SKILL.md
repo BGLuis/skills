@@ -10,11 +10,11 @@ Act as a Senior Infrastructure Engineer. Every image you write or review must sa
 ## 0. Workflow
 
 1. **Read before writing.** Existing `Dockerfile`, `.dockerignore`, `compose.yaml`, the lockfile and package manager, the language version (`.nvmrc`, `go.mod`, `pyproject.toml`, `rust-toolchain.toml`, `pom.xml`), the real start command, and whether the app writes to disk, spawns child processes, or needs native libraries.
-2. **Choose the base and the stages** (`references/dockerfile-rules.md` §6). Use the example for the language in `examples/` as the template.
+2. **Choose the base and the stages** (`references/dockerfile-rules.md` §6). Use the example for the language in `examples/` as the template. The versions in the examples are a snapshot: take the language version from the project, and confirm that the tag exists and get its digest with `docker buildx imagetools inspect <image>:<tag>` before writing it.
 3. **Validate** when a docker CLI is available:
    - `docker build --check .` (no warnings)
-   - build, then `docker image ls` / `docker image inspect -f '{{.Size}}'`
-   - `docker run` with the production limits (`--cpus`, `-m`)
+   - build, then `docker image ls <image>` (CONTENT SIZE = compressed, DISK USAGE = unpacked)
+   - `docker run` with the production limits (`--cpus`, `-m`, and `--memory-swap` equal to `-m`)
    - `docker stop` exits 0 fast
    - `docker inspect -f '{{.Config.User}}'` is not root
 
@@ -29,7 +29,7 @@ Act as a Senior Infrastructure Engineer. Every image you write or review must sa
 - **`--mount=type=cache`** on the package manager. **`--mount=type=secret`** for credentials. Never put secrets in `ARG`/`ENV`.
 - **Strict `.dockerignore`**, always (`.git`, `.env*`, `node_modules`, `target`, `.venv`, `Dockerfile*`...).
 - **Non-root with a static UID/GID** (`USER 10001:10001` or the image's `nonroot` 65532). Files copied into the runtime stay owned by root (read-only for the process). Use `--chown` only where the app writes.
-- **Pin the base**: at least `major.minor` for the tag, plus a `@sha256:` digest in production with automated updates. Never `latest`. Don't pin apt/apk package versions.
+- **Pin the base**: at least `major.minor` for the tag, plus a `@sha256:` digest in production with automated updates. Never `latest`. Tags with no version (distroless `:nonroot`, `debian:trixie-slim`) can only be pinned by digest. Don't pin apt/apk package versions.
 - **Exec form** in `CMD`/`ENTRYPOINT`, **never a package manager as PID 1** (`npm start`, `uv run`, `poetry run`). The process must handle `SIGTERM`, or the container runs with `init: true` / `--init`.
 - **`COPY`, not `ADD`**. `apt-get install --no-install-recommends`.
 - **HEALTHCHECK** only with something that exists in the image. Distroless has no `curl`: use a `healthcheck` subcommand in the binary itself, the runtime (`node -e fetch(...)`, `python -c urllib...`), or leave it to the orchestrator.
@@ -52,7 +52,7 @@ Avoid `alpine` for Python and for native Node dependencies (musl: wheels and pre
 
 Most runtimes size threads, workers and heap from the **host**, not from the container. Before you set limits, read `references/runtime-performance.md`. In short (measured on Engine 29.7):
 
-- **Node**: the heap follows the limit without headroom (256 MB → heap 259 MB → OOM kill). Always set `--max-old-space-size` ≈ 75% of the limit.
+- **Node**: the default heap is about half the limit, with a floor of ~259 MB and a cap of ~2.2 GB (256 MB → heap 259 MB → OOM kill; 8 GB → 2.2 GB, mostly unused). Always set `--max-old-space-size-percentage=75`, or `--max-old-space-size` in MB on a release without that flag.
 - **Python**: `os.cpu_count()` returns the host's cores. Set `--workers` explicitly.
 - **Go ≥ 1.25**: `GOMAXPROCS` follows the CPU limit (floor of 2). Set `GOMEMLIMIT` ≈ 90% of the memory limit.
 - **Java**: the default heap is 25% of the limit. Use `-XX:MaxRAMPercentage=75`.
@@ -62,8 +62,8 @@ Most runtimes size threads, workers and heap from the **host**, not from the con
 
 Details and validated fields in `references/compose.md`. Production:
 
-- `deploy.resources.limits` (cpus, memory, pids) + `reservations.memory`
-- `read_only: true` + `tmpfs`, `cap_drop: [ALL]`, `security_opt: [no-new-privileges:true]`, `init: true`
+- `deploy.resources.limits` (cpus, memory, pids) + `reservations.memory`, and `memswap_limit` equal to the memory limit (no swap)
+- `read_only: true` + `tmpfs` with a `size`, `cap_drop: [ALL]`, `security_opt: [no-new-privileges:true]`, `init: true`
 - log rotation (`max-size`/`max-file`)
 - `healthcheck` + `depends_on: condition: service_healthy`
 - `restart: unless-stopped`

@@ -20,7 +20,7 @@ Validated with Docker Engine 29.7 / BuildKit (`docker build --check`: no warning
 
 ## Runtime
 
-- Since Go 1.25, `GOMAXPROCS` follows the container's CPU limit (cgroup). Measured: `--cpus=4` → 4. **Floor of 2**: `--cpus=1` still gives 2. For exactly 1, set `GOMAXPROCS=1` explicitly (tested). On Go < 1.25, set `GOMAXPROCS` by hand or use `go.uber.org/automaxprocs`.
+- Since Go 1.25, `GOMAXPROCS` follows the container's CPU limit (cgroup). Measured: `--cpus=4` → 4. **Floor of 2**: `--cpus=1` and `--cpus=0.5` still give 2. `GOMAXPROCS=1` can be set explicitly (tested), but then the GC shares the only thread with the application: do it only if `nr_throttled` keeps growing under load. On Go < 1.25, set `GOMAXPROCS` by hand or use `go.uber.org/automaxprocs`.
 - For memory, set `GOMEMLIMIT` to about 90% of the container limit (for example `GOMEMLIMIT=460MiB` for `memory: 512M`). The GC then works harder before the kernel OOM-kills the process.
 
 ## Code
@@ -65,11 +65,14 @@ if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
 
 ```
 .git
+.env*
 **/*_test.go
 Dockerfile*
 .dockerignore
 ```
 
 Multi-arch build: `docker buildx build --platform linux/amd64,linux/arm64 -t app .`
+
+On ephemeral CI (layer cache only, no persistent builder) the cache mounts start empty: the cached `go mod download` layer holds nothing, and `go build` downloads every module again (measured). There, remove the `/go/pkg/mod` mount from both `RUN`s, so the modules become a real layer. See `references/ci-cache.md` §1.
 
 If the project needs cgo (sqlite, librdkafka), use `CGO_ENABLED=1` and `gcr.io/distroless/base-debian13:nonroot` (glibc). Cross-compiling with cgo then needs a C cross toolchain (for example `tonistiigi/xx`).

@@ -13,7 +13,15 @@ A CI runner starts with an empty builder. Without a remote cache, **every build 
 | **Layer cache** (result of each instruction) | Result of `RUN`, `COPY`... | Only with `--cache-to`/`--cache-from` |
 | **Cache mounts** (`--mount=type=cache`) | Package manager directories | **No**: they are local to the builder and are not exported by `--cache-to`. Requires a workaround (e.g. `reproducible-containers/buildkit-cache-dance` on GitHub Actions) or a persistent runner/builder |
 
-That's why, for CI, the most important thing is a **dependency layer that can be cached as a layer**: `cargo-chef` (Rust), `go mod download` on its own, `npm ci` with the manifests mounted, and so on. On a layer cache hit, the `RUN` doesn't even execute, and the cache mount stops mattering.
+That's why, for CI, the most important thing is a **dependency layer that can be cached as a layer**. On a layer cache hit, the `RUN` doesn't even execute, and the cache mount stops mattering. That only works when the dependencies are written into the image filesystem. Whatever a `RUN` writes into a cache mount is not in its layer:
+
+| Example | Where the dependencies land | With layer cache only |
+|---|---|---|
+| Node (`npm ci`), Python (`uv sync`) | `node_modules`, `.venv`: in the layer | Reused |
+| Rust (`cargo chef cook`) | compiled dependencies in `target/`: in the layer | Reused |
+| Go (`go mod download`), Maven (`dependency:go-offline`) | `/go/pkg/mod`, `/root/.m2`: **cache mounts** | **Not reused**: the cached layer is empty |
+
+Measured for Go, with the layers cached and the cache mounts empty, after a code-only change: `go mod download` was `CACHED`, and `go build` downloaded every module again. Without the `/go/pkg/mod` mount, the modules stayed in the layer and nothing was downloaded. So on ephemeral CI, remove the cache mount from the dependency directory in the Go and Maven examples (Maven follows the same mechanism, but was not measured). Keep it on a persistent builder, where it is the faster option. The compile cache (`/root/.cache/go-build`) is lost on ephemeral CI either way.
 
 ## 2. Backends
 

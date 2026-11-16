@@ -17,7 +17,7 @@ Based on [`astral-sh/uv-docker-example`](https://github.com/astral-sh/uv-docker-
 1. **Two-step `uv sync`**. The first runs with `--no-install-project`, so only the dependencies are installed, from `uv.lock` + `pyproject.toml` bind mounts. Then the source is copied and the project is installed. Code changes don't reinstall the dependencies.
 2. **`--locked`** fails the build if `uv.lock` is out of sync with `pyproject.toml` (reproducible). **`--no-dev`** leaves the dev group out.
 3. **`UV_COMPILE_BYTECODE=1`** writes the `.pyc` files at build time, so a `read_only: true` container doesn't try to write them at runtime. **`UV_LINK_MODE=copy`** is needed because the cache is a separate mount (hardlinks are impossible). **`UV_PYTHON_DOWNLOADS=never`** makes uv use the image's interpreter.
-4. **Only the `.venv` goes to runtime**. uv, the cache and the source outside the venv stay in the build stage. `--no-editable` installs the project itself into the venv, so the source tree is not needed at runtime.
+4. **Only the `.venv` goes to runtime**. uv, the cache and the source outside the venv stay in the build stage. `--no-editable` installs the project itself into the venv, so the source tree is not needed at runtime. **This only holds for a packaged project** (`[build-system]` in `pyproject.toml`). Without it, which is what `uv init` generates, uv installs only the dependencies: the image builds, and the container dies with `Could not import module`. Use the variant in "Project without `[build-system]`" below.
 5. **Same interpreter in both stages** (`python:X-slim-trixie`). A venv holds absolute paths to the Python it was built with.
 6. **Static UID/GID (10001)** created with `--no-log-init` (avoids huge sparse lastlog files with high UIDs).
 
@@ -27,7 +27,7 @@ That image ships **Debian's Python** (3.13 on debian13), not the one from `pytho
 
 ## Runtime and resources
 
-- **`os.cpu_count()` ignores the container CPU limit**. Measured with `--cpus=2` on a 16-core host: `os.cpu_count()` = 16, `os.process_cpu_count()` = 16. Formulas like `workers = 2*cpu+1` spawn about 33 workers into a 2-CPU container. **Always set the worker count explicitly** from the configured limit (`--workers 2`, `WEB_CONCURRENCY=2`, `GUNICORN_CMD_ARGS="--workers 2"`).
+- **`os.cpu_count()` ignores the container CPU limit**. Measured with `--cpus=2` on a 16-core host: `os.cpu_count()` = 16, `os.process_cpu_count()` = 16. Formulas like `workers = 2*cpu+1` spawn about 33 workers into a 2-CPU container. **Always set the worker count explicitly** from the configured limit (`--workers 2`, `WEB_CONCURRENCY=2`, `GUNICORN_CMD_ARGS="--workers 2"`). For libraries that size their own pools from `os.cpu_count()`, set `PYTHON_CPU_COUNT=<limit>` (Python 3.13+; measured: 16 → 2).
 - Each uvicorn/gunicorn worker is a full process (about 35–60 MiB for a small FastAPI app). Memory limit ≈ `workers × RSS per worker + ~30%`.
 - For async (FastAPI/uvicorn), 1 worker per CPU is usually enough. For sync (Django/Flask + gunicorn), use `--workers N --threads M` instead of many processes.
 - `PYTHONUNBUFFERED=1` makes logs show up immediately in `docker logs`.
@@ -84,6 +84,17 @@ CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "
 Dockerfile*
 .dockerignore
 ```
+
+## Project without `[build-system]`
+
+Check with `grep -q '^\[build-system\]' pyproject.toml`. When it is absent there is no project to install, so the venv holds only the dependencies. The build stage ends after the first `uv sync` (drop `COPY . .` and the second `uv sync`), and the runtime stage copies the source from the context, next to the venv:
+
+```dockerfile
+COPY --from=build /app/.venv /app/.venv
+COPY app.py ./
+```
+
+Copy only what the start command imports (`app.py`, or the package directory), never `COPY . .`. The files stay owned by root. Tested with `--read-only --cap-drop ALL`: the app answers, and `docker stop` exits 0.
 
 ## pip instead of uv
 

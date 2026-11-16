@@ -14,7 +14,7 @@ Validated with Docker Engine 29.7 (`docker build --check`: no warnings). Test ap
 
 1. **[`cargo-chef`](https://github.com/LukeMathWalker/cargo-chef)**. `prepare` turns `Cargo.toml` and `Cargo.lock` into a `recipe.json` of the dependencies. `cook` compiles only those dependencies in a separate layer. That layer stays cached until the dependencies change, **including in CI with a remote cache** (see `references/ci-cache.md`). A cache mount on `target/` does not survive a remote cache.
 2. **Cache mounts on the cargo registry and git** with `sharing=locked`: rebuilds don't download crates again, and parallel builds don't corrupt the index.
-3. **Release profile** tuned for size and speed: `lto = "thin"`, `codegen-units = 1`, `strip = true`, `panic = "abort"`.
+3. **Release profile** tuned for size and speed: `lto = "thin"`, `codegen-units = 1`, `strip = true`. `panic = "abort"` shrinks the binary a little more (the numbers above include it), but then a panic in one request handler kills the whole server instead of only that task. Add it only when that is acceptable.
 4. **`distroless/cc:nonroot`**: glibc + libgcc, no shell, UID 65532. Use it for dynamic glibc binaries (the Rust default). For `scratch` or `distroless/static`, build with `--target x86_64-unknown-linux-musl`. musl's allocator is slower under concurrency, so pair it with `mimalloc` or `jemalloc` if performance matters.
 5. `std::thread::available_parallelism()` **respects the cgroup CPU limit**. Measured: `--cpus=2` → 2, so tokio sizes its worker pool correctly with no tuning.
 
@@ -26,13 +26,12 @@ Validated with Docker Engine 29.7 (`docker build --check`: no warnings). Test ap
 lto = "thin"
 codegen-units = 1
 strip = true
-panic = "abort"
 ```
 
 ```dockerfile
 # syntax=docker/dockerfile:1
 
-FROM lukemathwalker/cargo-chef:latest-rust-1-slim-trixie AS chef
+FROM lukemathwalker/cargo-chef:0.1.78-rust-1.100-slim-trixie AS chef
 WORKDIR /app
 
 # Compute a dependency-only "recipe" from Cargo.toml/Cargo.lock.
@@ -62,10 +61,13 @@ ENTRYPOINT ["/usr/local/bin/api"]
 
 ```
 .git
+.env*
 target
 Dockerfile*
 .dockerignore
 ```
+
+`.env*` matters here more than elsewhere: `COPY . .` puts the whole context into build-stage layers, and `--cache-to ...,mode=max` pushes those layers to the registry.
 
 Graceful shutdown (without it, `docker stop` waits 10 s and SIGKILLs):
 
@@ -78,4 +80,4 @@ axum::serve(listener, app)
     .await?;
 ```
 
-Pin the `cargo-chef` tag to a specific version (for example `0.1.x-rust-1.9x-slim-trixie`) or to a digest in real projects. `latest-*` is used here only for readability.
+The `cargo-chef` tag carries both versions (`<cargo-chef>-rust-<rust>-slim-trixie`). Take the Rust version from the project's `rust-toolchain.toml`, pick the current `cargo-chef` release, and add the digest in real projects. The `latest-*` tags exist, but they change both versions under you.
