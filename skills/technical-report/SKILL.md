@@ -1,12 +1,19 @@
 ---
 name: technical-report
-description: Produces structured technical reports in docs/reports/ covering impacts, gains, results, steps, and implementation details, always anchored in verifiable file:line evidence and grounded in the official documentation of the installed version, in precedents from the codebase itself, and in reference examples. Writes the report in the language the repository asks for, or asks the user. Use when the user asks for a technical report, a feasibility analysis, a performance or usability audit of a module, a detailed implementation or validation plan, or documentation of work just completed. Do NOT use for README, API documentation, changelog, code comments, commit messages, Pull Request descriptions, business reports with no basis in code, or when the user wants the result as GitHub issues instead of a file (that is technical-issues).
+description: Produces structured technical reports in docs/reports/ covering impacts, gains, results, steps, and implementation details, always anchored in verifiable file:line evidence and grounded in the official documentation of the installed version, in precedents from the codebase itself, and in reference examples. Writes the report in the language the repository asks for, or asks the user. Use when the user asks for a technical report, a feasibility analysis, a performance or usability audit of a module, a detailed implementation or validation plan, or documentation of work just completed. Do NOT use for README, API documentation, changelog, code comments, commit messages, Pull Request descriptions, business reports with no basis in code, or when the user wants the result as GitHub issues instead of a file (that is technical-issues). Requires the technical-diagrams skill.
+compatibility: "Requires skills: technical-diagrams"
 ---
 
 # Technical Report
 
 Act as a senior engineer doing a critical review. A report is only worth something if every
 claim can be checked against the repository. Prose without evidence is noise.
+
+This skill **depends on the technical-diagrams skill** for drawing and validating Mermaid diagrams.
+Confirm it is installed and loadable before starting; if it is not installed or cannot be loaded,
+**stop and tell the user** which skill is missing so they can install it (for example
+`install.sh --skill technical-report` or
+`npx skills add BGLuis/skills --skill technical-report --skill technical-diagrams`).
 
 ## 0. Before writing
 

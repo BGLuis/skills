@@ -1,6 +1,7 @@
 ---
 name: technical-issues
-description: Turns a technical analysis or audit of a codebase into GitHub issues instead of a report file — one issue, or an epic with sub-issues — each anchored in file:line evidence, grounded in the official docs of the installed version, and closed by a falsifiable acceptance criterion. Investigates with the method of the technical-report skill, writes drafts, validates them, checks for duplicates, shows a preview, and only creates the issues after the user confirms. Use when the user asks to open, create, or file issues for a feature, a plan, a refactor, an audit, a performance or accessibility problem, or to break a piece of work down into GitHub issues or sub-issues. Do NOT use for a report file in docs/reports/ (that is technical-report), for triaging, labeling, or closing existing issues, for Pull Requests, for issue trackers other than GitHub (GitLab, Jira, Linear), or for issue and PR templates of a repository (that is github-repo-setup).
+description: Turns a technical analysis or audit of a codebase into GitHub issues instead of a report file — one issue, or an epic with sub-issues — each anchored in file:line evidence, grounded in the official docs of the installed version, and closed by a falsifiable acceptance criterion. Investigates with the method of the technical-report skill, writes drafts, validates them, checks for duplicates, shows a preview, and only creates the issues after the user confirms. Use when the user asks to open, create, or file issues for a feature, a plan, a refactor, an audit, a performance or accessibility problem, or to break a piece of work down into GitHub issues or sub-issues. Do NOT use for a report file in docs/reports/ (that is technical-report), for triaging, labeling, or closing existing issues, for Pull Requests, for issue trackers other than GitHub (GitLab, Jira, Linear), or for issue and PR templates of a repository (that is github-repo-setup). Requires technical-report and technical-diagrams.
+compatibility: "Requires skills: technical-report, technical-diagrams"
 ---
 
 # Technical Issues
@@ -10,9 +11,13 @@ someone can pick up and close. An issue is only worth opening if whoever takes i
 the problem, find the code, and know when it is done — without reading anything else — and if it
 lands where the repository's own rules expect it.
 
-This skill **depends on the technical-report skill**. Load it and follow its rules for research,
-evidence, `[modeled]`, `[Fn]` citations, measurement, and labels per language. If it is not
-installed or cannot be loaded, stop and tell the user: without it the issues lose their grounding.
+This skill **depends on the technical-report skill** (which itself depends on
+**technical-diagrams**). Load them first and follow `technical-report` for research, evidence,
+`[modeled]`, `[Fn]` citations, measurement, and labels per language. If either skill is not
+installed or cannot be loaded, **stop and tell the user** which skill is missing so they can
+install it (for example `install.sh --skill technical-issues` or
+`npx skills add BGLuis/skills --skill technical-issues --skill technical-report --skill technical-diagrams`):
+without them the issues lose their grounding.
 
 ## 0. Preconditions
 

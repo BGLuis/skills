@@ -1,6 +1,7 @@
 ---
 name: resolve-issues
-description: Resolves GitHub issues end to end — one issue, several, or an epic with its sub-issues. Reads each issue with its comments, parent, sub-issues, blockers, and closing pull requests; groups the work by root cause; researches with the technical-report method (code precedents, installed version, docs via Context7 or the official site, changelog, web search only as a lead); turns the acceptance criteria into checks before coding; implements the minimum change; verifies every criterion; and commits locally, one branch per work unit and one commit per issue, without pushing. Use when the user asks to resolve, fix, implement, work on, or close an issue or a list of issues, or to plan an issue's implementation. Do NOT use to create or file issues (that is technical-issues), to write a report file (technical-report), to triage or close issues without code, to fix the review comments, CI, or conflicts of an open pull request (resolve-pull-requests), or for trackers other than GitHub.
+description: Resolves GitHub issues end to end — one issue, several, or an epic with its sub-issues. Reads each issue with its comments, parent, sub-issues, blockers, and closing pull requests; groups the work by root cause; researches with the technical-report method (code precedents, installed version, docs via Context7/official site/changelog); turns the acceptance criteria into checks before coding; implements the minimum change; verifies every criterion; and commits locally, one branch per work unit and one commit per issue, without pushing. Use when the user asks to resolve, fix, implement, work on, or close an issue or a list of issues, or to plan an issue's implementation. Do NOT use to create or file issues (that is technical-issues), to write a report file (technical-report), to triage or close issues without code, to fix the review comments, CI, or conflicts of an open pull request (resolve-pull-requests), or for trackers other than GitHub. Requires technical-report and technical-diagrams.
+compatibility: "Requires skills: technical-report, technical-diagrams"
 ---
 
 # Resolve Issues
@@ -10,10 +11,12 @@ change follows what the installed version of each dependency documents, and the 
 local commits the user can review before anything leaves the machine. Nothing here is pushed,
 opened, or commented on GitHub unless the user asks for it.
 
-This skill **depends on the technical-report skill** for its research method
-(`references/research.md` there) and its measurement protocol
-(`references/performance-measurement.md`). Load them. If that skill is not installed, follow
-`references/research-sources.md` here alone and tell the user the research is lighter.
+This skill **depends on the technical-report skill** (which itself depends on
+**technical-diagrams**) for its research method (`references/research.md` there) and its
+measurement protocol (`references/performance-measurement.md`). Load them first. If either skill
+is not installed or cannot be loaded, **stop and tell the user** which skill is missing so they
+can install it (for example `install.sh --skill resolve-issues` or
+`npx skills add BGLuis/skills --skill resolve-issues --skill technical-report --skill technical-diagrams`).
 
 ## 0. Preconditions
 

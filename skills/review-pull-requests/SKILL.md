@@ -1,6 +1,7 @@
 ---
 name: review-pull-requests
-description: Reviews a GitHub pull request someone opened against the user's project and judges whether it fits the project — its architecture, conventions, ADRs, and the issue it claims to close — and whether it is correct, tested, safe, and worth merging. Reads every changed line; checks its claims against the code; flags deprecated APIs, outdated, yanked, or vulnerable dependencies, and use against the docs of the installed version; runs checks and probes in an isolated worktree, reading an outside contributor's build and CI changes first; and drafts one review (summary of what was and was not run, labeled inline comments) that is validated against the live diff and posted only after the user approves it. Also re-reviews after the author pushes. Use when the user asks to review, check, evaluate, or critique a pull request, or whether it can be merged. Do NOT use to fix a pull request's feedback (that is resolve-pull-requests), to resolve an issue (resolve-issues), or for platforms other than GitHub.
+description: Reviews an open GitHub pull request and judges whether it fits the project — its architecture, conventions, ADRs, and the issue it claims to close — and whether it is correct, tested, safe, and worth merging. Reads every changed line; checks its claims against the code; flags deprecated APIs, outdated, yanked, or vulnerable dependencies, and use against the docs of the installed version; runs checks and probes in an isolated worktree, reading an outside contributor's build and CI changes first; and drafts one review (summary, labeled inline comments) validated against the live diff and posted only after user approval. Also re-reviews after the author pushes. Use when the user asks to review, check, evaluate, or critique a pull request, or whether it can be merged. Do NOT use to fix a pull request's feedback (that is resolve-pull-requests), to resolve an issue (resolve-issues), or for platforms other than GitHub. Requires resolve-issues, technical-report, and technical-diagrams.
+compatibility: "Requires skills: resolve-issues, technical-report, technical-diagrams"
 ---
 
 # Review Pull Requests
@@ -11,10 +12,13 @@ guide, the code around the change — and the issue the pull request says it clo
 taste. Approve when the change clearly improves the code's health even if it is not perfect;
 block only for what would make it worse, with the evidence that shows it.
 
-This skill **depends on the technical-report skill** for its research method and on the
-resolve-issues skill for reading issues (`scripts/issue_context.py`) and checking acceptance
-criteria (`references/verification.md`). Load them; if one is missing, say what the review could
-not check because of it.
+This skill **depends on the technical-report skill** (which itself depends on
+**technical-diagrams**) for its research method and on the **resolve-issues skill** for reading
+issues (`scripts/issue_context.py`) and checking acceptance criteria (`references/verification.md`).
+Load them first. If any of these skills is not installed or cannot be loaded, **stop and tell the
+user** which skill is missing so they can install it (for example
+`install.sh --skill review-pull-requests` or
+`npx skills add BGLuis/skills --skill review-pull-requests --skill resolve-issues --skill technical-report --skill technical-diagrams`).
 
 Posting a review is public and permanent: **nothing is posted until the user approves the exact
 draft**, in this session, for this pull request.

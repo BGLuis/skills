@@ -1,6 +1,7 @@
 ---
 name: resolve-pull-requests
-description: Fixes an open GitHub pull request until it is ready to merge — addresses every piece of review feedback (inline threads, inline comments, review summaries, conversation comments), the failing checks, and the merge conflicts, and confirms it still meets the issues it closes. Triages each item against the code and the official docs of the installed version, fixes in new commits on the pull request's branch, verifies locally, and asks before pushing; drafts every reply for the user to approve, and resolves a thread only after CI passes on the fix. Use when the user asks to fix, address, or answer the review comments of a pull request, to fix its CI or its conflicts, or to check whether earlier comments were addressed. Do NOT use to review or critique a pull request (that is review-pull-requests), to open a new pull request, to resolve an issue that has no pull request yet (that is resolve-issues), or for platforms other than GitHub.
+description: Fixes an open GitHub pull request until it is ready to merge — addresses every piece of review feedback (inline threads, inline comments, review summaries, conversation comments), the failing checks, and the merge conflicts, and confirms it still meets the issues it closes. Triages each item against the code and the official docs of the installed version, fixes in new commits on the pull request's branch, verifies locally, and asks before pushing; drafts every reply for the user to approve, and resolves a thread only after CI passes on the fix. Use when the user asks to fix, address, or answer the review comments of a pull request, to fix its CI or its conflicts, or to check whether earlier comments were addressed. Do NOT use to review or critique a pull request (that is review-pull-requests), to open a new pull request, to resolve an issue that has no pull request yet (that is resolve-issues), or for platforms other than GitHub. Requires resolve-issues, technical-report, and technical-diagrams.
+compatibility: "Requires skills: resolve-issues, technical-report, technical-diagrams"
 ---
 
 # Resolve Pull Requests
@@ -10,9 +11,12 @@ reply that explains why not, or a question back — the checks pass, it merges w
 and it still does what its issues ask. Reviewers read the answers, so each one has to be true:
 "fixed" means the fix is pushed and CI passed on it.
 
-This skill **depends on the technical-report skill** for its research method
-(`references/research.md` there). Load it. If it is not installed, follow the source order in step
-4 alone and tell the user the research is lighter.
+This skill **depends on the resolve-issues skill** (`references/verification.md` there) and on the
+**technical-report skill** (which itself depends on **technical-diagrams**) for its research method
+(`references/research.md` there). Load them first. If any of these skills is not installed or
+cannot be loaded, **stop and tell the user** which skill is missing so they can install it (for
+example `install.sh --skill resolve-pull-requests` or
+`npx skills add BGLuis/skills --skill resolve-pull-requests --skill resolve-issues --skill technical-report --skill technical-diagrams`).
 
 Three actions leave the machine: the push, the replies, and resolving threads. **Each waits for
 the user's yes**, given in this session for this pull request.
